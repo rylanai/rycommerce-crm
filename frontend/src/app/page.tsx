@@ -124,22 +124,32 @@ export default function Home() {
 
     if (window.google?.maps?.places) {
       initAutocomplete();
-      return;
+    } else {
+      const existingScript = document.querySelector(
+        'script[src*="maps.googleapis.com"]'
+      );
+      if (existingScript) {
+        existingScript.addEventListener("load", initAutocomplete);
+      } else {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_PLACES_KEY}&libraries=places`;
+        script.async = true;
+        script.onload = initAutocomplete;
+        document.head.appendChild(script);
+      }
     }
 
-    const existingScript = document.querySelector(
-      'script[src*="maps.googleapis.com"]'
-    );
-    if (existingScript) {
-      existingScript.addEventListener("load", initAutocomplete);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_PLACES_KEY}&libraries=places`;
-    script.async = true;
-    script.onload = initAutocomplete;
-    document.head.appendChild(script);
+    return () => {
+      // Clean up autocomplete when leaving step 5
+      if (autocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+        autocompleteRef.current = null;
+      }
+      // Remove the pac-container dropdown that Google Places leaves in the DOM
+      document
+        .querySelectorAll(".pac-container")
+        .forEach((el) => el.remove());
+    };
   }, [step, initAutocomplete]);
 
   const selectOption = (field: keyof FormData, value: string) => {
@@ -308,6 +318,7 @@ export default function Home() {
             <input
               type="text"
               placeholder="First Name"
+              autoComplete="off"
               value={formData.first_name}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, first_name: e.target.value }))
@@ -317,6 +328,7 @@ export default function Home() {
             <input
               type="text"
               placeholder="Last Name"
+              autoComplete="off"
               value={formData.last_name}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, last_name: e.target.value }))
@@ -339,6 +351,7 @@ export default function Home() {
             <input
               type="email"
               placeholder="Email address"
+              autoComplete="off"
               value={formData.email}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, email: e.target.value }))
@@ -363,6 +376,7 @@ export default function Home() {
               <input
                 type="tel"
                 placeholder="(555) 555-5555"
+                autoComplete="off"
                 value={formData.phone}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, phone: e.target.value }))
