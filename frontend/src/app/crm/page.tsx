@@ -321,7 +321,7 @@ export default function CRMPage() {
           className="bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-sm"
         >
           <h2 className="text-white text-xl font-bold mb-6 text-center">
-            Ry Commerce CRM
+            crmEscrow
           </h2>
           <input
             type="password"
@@ -345,7 +345,7 @@ export default function CRMPage() {
     <div className="min-h-screen bg-gray-900 flex flex-col">
       {/* Top Bar */}
       <div className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-white text-xl font-bold">Ry Commerce CRM</h1>
+        <h1 className="text-white text-xl font-bold">crmEscrow</h1>
         <div className="flex items-center gap-2">
           {["ALL", "META", "SMS", "PPC"].map((src) => (
             <button
