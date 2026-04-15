@@ -67,9 +67,11 @@ function timeAgo(dateStr: string) {
 function LeadCard({
   lead,
   index,
+  onDelete,
 }: {
   lead: Lead;
   index: number;
+  onDelete: (id: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const srcColor = SOURCE_COLORS[lead.source?.toLowerCase()] || "#6b7280";
@@ -175,6 +177,17 @@ function LeadCard({
                 <span className="text-gray-500">Created:</span>{" "}
                 {new Date(lead.created_at).toLocaleString()}
               </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`Delete ${lead.first_name} ${lead.last_name}?`)) {
+                    onDelete(lead.id);
+                  }
+                }}
+                className="mt-3 w-full py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer"
+              >
+                Delete Lead
+              </button>
             </div>
           )}
         </div>
@@ -225,6 +238,16 @@ export default function CRMPage() {
 
   const getLeadsByStage = (stage: string) =>
     filteredLeads.filter((l) => l.stage === stage);
+
+  const handleDelete = async (id: number) => {
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+    try {
+      await fetch(`${API_URL}/api/leads/${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Error deleting lead:", err);
+      fetchLeads();
+    }
+  };
 
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
@@ -331,6 +354,7 @@ export default function CRMPage() {
                             key={lead.id}
                             lead={lead}
                             index={index}
+                            onDelete={handleDelete}
                           />
                         ))}
                         {provided.placeholder}
