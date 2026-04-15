@@ -74,7 +74,16 @@ function LeadCard({
   onDelete: (id: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
   const srcColor = SOURCE_COLORS[lead.source?.toLowerCase()] || "#6b7280";
+
+  const copyMessage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const msg = `Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${lead.property_address}. 🙂\n\n-Rylan Patterson`;
+    navigator.clipboard.writeText(msg);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <Draggable draggableId={String(lead.id)} index={index}>
@@ -96,7 +105,13 @@ function LeadCard({
               title={lead.source?.toUpperCase()}
             />
           </div>
-          <p className="text-gray-400 text-xs mb-1">{lead.phone}</p>
+          <a
+            href={`sms:${lead.phone}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-blue-400 hover:text-blue-300 text-xs mb-1 block underline"
+          >
+            {lead.phone}
+          </a>
           <p className="text-gray-400 text-xs mb-1 truncate">
             {lead.property_address}
           </p>
@@ -178,13 +193,19 @@ function LeadCard({
                 {new Date(lead.created_at).toLocaleString()}
               </p>
               <button
+                onClick={copyMessage}
+                className="mt-3 w-full py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer"
+              >
+                {copied ? "Copied!" : "Copy Message"}
+              </button>
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   if (confirm(`Delete ${lead.first_name} ${lead.last_name}?`)) {
                     onDelete(lead.id);
                   }
                 }}
-                className="mt-3 w-full py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer"
+                className="mt-2 w-full py-1.5 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-semibold cursor-pointer"
               >
                 Delete Lead
               </button>
