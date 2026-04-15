@@ -124,7 +124,7 @@ function LeadCard({
             </div>
           </div>
           <a
-            href={`sms:${lead.phone}&body=${encodeURIComponent(`Is ${lead.property_address} the correct address?`)}`}
+            href={`sms:${lead.phone}&body=${encodeURIComponent(`Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${lead.property_address}. 🙂\n\n-Rylan Patterson`)}`}
             onClick={(e) => e.stopPropagation()}
             className="text-blue-400 hover:text-blue-300 text-xs mb-1 block underline"
           >
