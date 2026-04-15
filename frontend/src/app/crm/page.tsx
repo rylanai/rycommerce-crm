@@ -218,7 +218,12 @@ function LeadCard({
 }
 
 export default function CRMPage() {
-  const [authenticated, setAuthenticated] = useState(false);
+  const [authenticated, setAuthenticated] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("crm_auth") === "true";
+    }
+    return false;
+  });
   const [passwordInput, setPasswordInput] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [sourceFilter, setSourceFilter] = useState("ALL");
@@ -245,6 +250,7 @@ export default function CRMPage() {
     e.preventDefault();
     if (passwordInput === PASSWORD) {
       setAuthenticated(true);
+      localStorage.setItem("crm_auth", "true");
     } else {
       alert("Incorrect password");
     }
