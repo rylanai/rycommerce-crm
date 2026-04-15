@@ -2,6 +2,23 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 
+const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
+
+async function notifySlack(lead) {
+  if (!SLACK_WEBHOOK_URL) return;
+  try {
+    await fetch(SLACK_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: `🏠 *New Lead!*\n*Name:* ${lead.first_name} ${lead.last_name}\n*Phone:* ${lead.phone}\n*Email:* ${lead.email}\n*Address:* ${lead.property_address}\n*Timeline:* ${lead.timeline}\n*Repairs:* ${lead.repairs}\n*Reason:* ${lead.sell_reason}\n*Source:* ${(lead.source || 'meta').toUpperCase()}`,
+      }),
+    });
+  } catch (err) {
+    console.error('Slack notification failed:', err);
+  }
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -68,7 +85,9 @@ app.post('/api/leads', async (req, res) => {
        sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5]
     );
 
-    res.status(201).json(result.rows[0]);
+    const newLead = result.rows[0];
+    res.status(201).json(newLead);
+    notifySlack(newLead);
   } catch (err) {
     console.error('Error creating lead:', err);
     res.status(500).json({ error: 'Failed to create lead' });
