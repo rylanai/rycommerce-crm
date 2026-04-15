@@ -1,5 +1,11 @@
 "use client";
 
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -168,6 +174,9 @@ export default function Home() {
         body: JSON.stringify({ ...formData, ...utmParams }),
       });
       setSubmitted(true);
+      if (typeof window !== "undefined" && window.fbq) {
+        window.fbq("track", "Lead");
+      }
     } catch (err) {
       console.error("Submit error:", err);
       alert("Something went wrong. Please try again.");
