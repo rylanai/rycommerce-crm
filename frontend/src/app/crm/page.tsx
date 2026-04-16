@@ -75,6 +75,7 @@ function LeadCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [addressCopied, setAddressCopied] = useState(false);
   const srcColor = SOURCE_COLORS[lead.source?.toLowerCase()] || "#6b7280";
 
   const copyMessage = (e: React.MouseEvent) => {
@@ -137,14 +138,16 @@ function LeadCard({
             </a>
           </p>
           <p
-            className="text-gray-400 text-xs mb-1 truncate cursor-pointer hover:text-gray-300"
+            className={`text-xs mb-1 truncate cursor-pointer ${addressCopied ? "text-green-400" : "text-gray-400 hover:text-gray-300"}`}
             onClick={(e) => {
               e.stopPropagation();
               navigator.clipboard.writeText(lead.property_address);
+              setAddressCopied(true);
+              setTimeout(() => setAddressCopied(false), 2000);
             }}
             title="Click to copy address"
           >
-            {lead.property_address}
+            {addressCopied ? "Copied!" : lead.property_address}
           </p>
           <div className="flex justify-between items-center">
             <span className="text-gray-500 text-xs">{lead.timeline}</span>
