@@ -125,16 +125,25 @@ function LeadCard({
               />
             </div>
           </div>
-          <a
-            href={lead.stage === "New Lead"
-              ? `sms:${lead.phone}&body=${encodeURIComponent(`Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${lead.property_address}. 🙂\n\n-Rylan Patterson`)}`
-              : `sms:${lead.phone}`}
-            onClick={(e) => e.stopPropagation()}
-            className="text-blue-400 hover:text-blue-300 text-xs mb-1 block underline"
+          <p className="text-xs mb-1">
+            <a
+              href={lead.stage === "New Lead"
+                ? `sms:${lead.phone}&body=${encodeURIComponent(`Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${lead.property_address}. 🙂\n\n-Rylan Patterson`)}`
+                : `sms:${lead.phone}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-blue-400 hover:text-blue-300 underline"
+            >
+              {lead.phone}
+            </a>
+          </p>
+          <p
+            className="text-gray-400 text-xs mb-1 truncate cursor-pointer hover:text-gray-300"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(lead.property_address);
+            }}
+            title="Click to copy address"
           >
-            {lead.phone}
-          </a>
-          <p className="text-gray-400 text-xs mb-1 truncate">
             {lead.property_address}
           </p>
           <div className="flex justify-between items-center">
