@@ -76,11 +76,13 @@ function LeadCard({
   index,
   onDelete,
   onFollowUp,
+  firstColumnName,
 }: {
   lead: Lead;
   index: number;
   onDelete: (id: number) => void;
   onFollowUp: (id: number) => void;
+  firstColumnName: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -112,7 +114,7 @@ function LeadCard({
               {lead.first_name} {lead.last_name}
             </span>
             <div className="flex items-center gap-2">
-              {lead.stage === "New Lead" && (
+              {lead.stage === firstColumnName && (
                 <button
                   onClick={copyMessage}
                   title={copied ? "Copied!" : "Copy message"}
@@ -150,7 +152,7 @@ function LeadCard({
           </div>
           <p className="text-xs mb-1">
             <a
-              href={lead.stage === "New Lead"
+              href={lead.stage === firstColumnName
                 ? `sms:${lead.phone}&body=${encodeURIComponent(`Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${lead.property_address}. 🙂\n\n-Rylan Patterson`)}`
                 : `sms:${lead.phone}`}
               onClick={(e) => e.stopPropagation()}
@@ -281,9 +283,8 @@ export default function CRMPage() {
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
 
   const defaultWithCustom = [...DEFAULT_STAGES, ...customStages.map((s) => s.name)];
-  const allStages = columnOrder
-    ? [...columnOrder, ...defaultWithCustom.filter((s) => !columnOrder.includes(s))]
-    : defaultWithCustom;
+  const allStages = columnOrder ? columnOrder : defaultWithCustom;
+  const firstColumnName = allStages[0] || "New Lead";
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -627,6 +628,7 @@ export default function CRMPage() {
                                     index={index}
                                     onDelete={handleDelete}
                                     onFollowUp={handleFollowUp}
+                                    firstColumnName={firstColumnName}
                                   />
                                 ))}
                                 {provided.placeholder}

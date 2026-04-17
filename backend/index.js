@@ -88,17 +88,29 @@ app.post('/api/leads', async (req, res) => {
       sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5
     } = req.body;
 
+    // Get the first column name from saved order, fallback to 'New Lead'
+    let defaultStage = 'New Lead';
+    try {
+      const orderResult = await pool.query("SELECT value FROM settings WHERE key = 'column_order'");
+      if (orderResult.rows.length > 0) {
+        const order = JSON.parse(orderResult.rows[0].value);
+        if (order && order.length > 0) {
+          defaultStage = order[0];
+        }
+      }
+    } catch (e) { /* use default */ }
+
     const result = await pool.query(
       `INSERT INTO leads (
         first_name, last_name, email, phone, property_address,
         wants_to_sell, timeline, repairs, sell_reason,
-        source, utm_campaign, utm_source,
+        stage, source, utm_campaign, utm_source,
         sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       RETURNING *`,
       [first_name, last_name, email, phone, property_address,
        wants_to_sell, timeline, repairs, sell_reason,
-       source || 'meta', utm_campaign, utm_source,
+       defaultStage, source || 'meta', utm_campaign, utm_source,
        sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5]
     );
 
