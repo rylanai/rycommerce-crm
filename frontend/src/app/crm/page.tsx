@@ -262,8 +262,12 @@ export default function CRMPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [sourceFilter, setSourceFilter] = useState("ALL");
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
+  const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
 
-  const allStages = [...DEFAULT_STAGES, ...customStages.map((s) => s.name)];
+  const defaultWithCustom = [...DEFAULT_STAGES, ...customStages.map((s) => s.name)];
+  const allStages = columnOrder
+    ? [...columnOrder, ...defaultWithCustom.filter((s) => !columnOrder.includes(s))]
+    : defaultWithCustom;
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -277,13 +281,33 @@ export default function CRMPage() {
 
   const fetchStages = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/stages`);
-      const data = await res.json();
-      setCustomStages(data);
+      const [stagesRes, orderRes] = await Promise.all([
+        fetch(`${API_URL}/api/stages`),
+        fetch(`${API_URL}/api/settings/column-order`),
+      ]);
+      const stagesData = await stagesRes.json();
+      const orderData = await orderRes.json();
+      setCustomStages(stagesData);
+      if (orderData.order) {
+        setColumnOrder(orderData.order);
+      }
     } catch (err) {
       console.error("Error fetching stages:", err);
     }
   }, []);
+
+  const saveColumnOrder = async (newOrder: string[]) => {
+    setColumnOrder(newOrder);
+    try {
+      await fetch(`${API_URL}/api/settings/column-order`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: newOrder }),
+      });
+    } catch (err) {
+      console.error("Error saving column order:", err);
+    }
+  };
 
   const addCustomStage = async () => {
     const name = prompt("Enter column name:");
@@ -300,6 +324,8 @@ export default function CRMPage() {
       });
       const newStage = await res.json();
       setCustomStages((prev) => [...prev, newStage]);
+      const newOrder = [...allStages, name.trim()];
+      saveColumnOrder(newOrder);
     } catch (err) {
       console.error("Error adding stage:", err);
     }
@@ -361,6 +387,17 @@ export default function CRMPage() {
 
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
+
+    // Column reorder
+    if (result.type === "COLUMN") {
+      const newOrder = [...allStages];
+      const [moved] = newOrder.splice(result.source.index, 1);
+      newOrder.splice(result.destination.index, 0, moved);
+      saveColumnOrder(newOrder);
+      return;
+    }
+
+    // Card move between columns
     const leadId = parseInt(result.draggableId);
     const newStage = result.destination.droppableId;
 
@@ -436,63 +473,80 @@ export default function CRMPage() {
       {/* Kanban Board */}
       <div className="flex-1 overflow-x-auto p-4">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-3 min-w-max">
-            {allStages.map((stage) => {
-              const stageLeads = getLeadsByStage(stage);
-              const isCustom = customStages.some((s) => s.name === stage);
-              return (
-                <div
-                  key={stage}
-                  className="w-72 bg-gray-800 rounded-xl flex flex-col max-h-[calc(100vh-140px)]"
-                >
-                  <div className="px-3 py-3 border-b border-gray-700 flex justify-between items-center">
-                    <h3 className="text-white text-sm font-semibold">
-                      {stage}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">
-                        {stageLeads.length}
-                      </span>
-                      {isCustom && (
-                        <button
-                          onClick={() => deleteCustomStage(customStages.find((s) => s.name === stage)!)}
-                          className="text-gray-500 hover:text-red-400 cursor-pointer text-xs"
-                          title="Delete column"
+          <Droppable droppableId="board" type="COLUMN" direction="horizontal">
+            {(boardProvided) => (
+              <div
+                ref={boardProvided.innerRef}
+                {...boardProvided.droppableProps}
+                className="flex gap-3 min-w-max"
+              >
+                {allStages.map((stage, colIndex) => {
+                  const stageLeads = getLeadsByStage(stage);
+                  const isCustom = customStages.some((s) => s.name === stage);
+                  return (
+                    <Draggable key={stage} draggableId={`col-${stage}`} index={colIndex}>
+                      {(colProvided) => (
+                        <div
+                          ref={colProvided.innerRef}
+                          {...colProvided.draggableProps}
+                          className="w-72 bg-gray-800 rounded-xl flex flex-col max-h-[calc(100vh-140px)]"
                         >
-                          ✕
-                        </button>
+                          <div
+                            {...colProvided.dragHandleProps}
+                            className="px-3 py-3 border-b border-gray-700 flex justify-between items-center cursor-grab"
+                          >
+                            <h3 className="text-white text-sm font-semibold">
+                              {stage}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <span className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">
+                                {stageLeads.length}
+                              </span>
+                              {isCustom && (
+                                <button
+                                  onClick={() => deleteCustomStage(customStages.find((s) => s.name === stage)!)}
+                                  className="text-gray-500 hover:text-red-400 cursor-pointer text-xs"
+                                  title="Delete column"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <Droppable droppableId={stage} type="CARD">
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className="flex-1 overflow-y-auto p-2 min-h-[100px]"
+                              >
+                                {stageLeads.map((lead, index) => (
+                                  <LeadCard
+                                    key={lead.id}
+                                    lead={lead}
+                                    index={index}
+                                    onDelete={handleDelete}
+                                  />
+                                ))}
+                                {provided.placeholder}
+                              </div>
+                            )}
+                          </Droppable>
+                        </div>
                       )}
-                    </div>
-                  </div>
-                  <Droppable droppableId={stage}>
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className="flex-1 overflow-y-auto p-2 min-h-[100px]"
-                      >
-                        {stageLeads.map((lead, index) => (
-                          <LeadCard
-                            key={lead.id}
-                            lead={lead}
-                            index={index}
-                            onDelete={handleDelete}
-                          />
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-              );
-            })}
-            <button
-              onClick={addCustomStage}
-              className="w-72 min-h-[100px] bg-gray-800 rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-750 border-2 border-dashed border-gray-700 hover:border-gray-500 flex-shrink-0"
-            >
-              <span className="text-gray-500 text-2xl">+</span>
-            </button>
-          </div>
+                    </Draggable>
+                  );
+                })}
+                {boardProvided.placeholder}
+                <button
+                  onClick={addCustomStage}
+                  className="w-72 min-h-[100px] bg-gray-800 rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-750 border-2 border-dashed border-gray-700 hover:border-gray-500 flex-shrink-0"
+                >
+                  <span className="text-gray-500 text-2xl">+</span>
+                </button>
+              </div>
+            )}
+          </Droppable>
         </DragDropContext>
       </div>
 

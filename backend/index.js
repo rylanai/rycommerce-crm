@@ -39,6 +39,12 @@ const initDB = async () => {
       );
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS leads (
         id SERIAL PRIMARY KEY,
         first_name VARCHAR(255),
@@ -218,6 +224,36 @@ app.delete('/api/stages/:id', async (req, res) => {
   } catch (err) {
     console.error('Error deleting stage:', err);
     res.status(500).json({ error: 'Failed to delete stage' });
+  }
+});
+
+// GET /api/settings/column-order — get column order
+app.get('/api/settings/column-order', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'column_order'");
+    if (result.rows.length === 0) {
+      return res.json({ order: null });
+    }
+    res.json({ order: JSON.parse(result.rows[0].value) });
+  } catch (err) {
+    console.error('Error fetching column order:', err);
+    res.status(500).json({ error: 'Failed to fetch column order' });
+  }
+});
+
+// PUT /api/settings/column-order — save column order
+app.put('/api/settings/column-order', async (req, res) => {
+  try {
+    const { order } = req.body;
+    await pool.query(
+      `INSERT INTO settings (key, value) VALUES ('column_order', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [JSON.stringify(order)]
+    );
+    res.json({ message: 'Column order saved' });
+  } catch (err) {
+    console.error('Error saving column order:', err);
+    res.status(500).json({ error: 'Failed to save column order' });
   }
 });
 
