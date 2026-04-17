@@ -559,15 +559,26 @@ export default function CRMPage() {
                               <span className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">
                                 {stageLeads.length}
                               </span>
-                              {isCustom && (
-                                <button
-                                  onClick={() => deleteCustomStage(customStages.find((s) => s.name === stage)!)}
-                                  className="text-gray-500 hover:text-red-400 cursor-pointer text-xs"
-                                  title="Delete column"
-                                >
-                                  ✕
-                                </button>
-                              )}
+                              <button
+                                onClick={() => {
+                                  const stageLeadsCount = getLeadsByStage(stage).length;
+                                  if (stageLeadsCount > 0) {
+                                    alert("Move all leads out of this column before deleting it.");
+                                    return;
+                                  }
+                                  if (!confirm(`Delete column "${stage}"?`)) return;
+                                  const custom = customStages.find((s) => s.name === stage);
+                                  if (custom) {
+                                    deleteCustomStage(custom);
+                                  }
+                                  const newOrder = allStages.filter((s) => s !== stage);
+                                  saveColumnOrder(newOrder);
+                                }}
+                                className="text-gray-500 hover:text-red-400 cursor-pointer text-xs"
+                                title="Delete column"
+                              >
+                                ✕
+                              </button>
                             </div>
                           </div>
                           <Droppable droppableId={stage} type="CARD">
