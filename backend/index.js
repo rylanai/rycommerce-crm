@@ -212,6 +212,25 @@ app.post('/api/stages', async (req, res) => {
   }
 });
 
+// PATCH /api/stages/:id — rename a custom stage
+app.patch('/api/stages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const result = await pool.query(
+      'UPDATE custom_stages SET name = $1 WHERE id = $2 RETURNING *',
+      [name, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Stage not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error renaming stage:', err);
+    res.status(500).json({ error: 'Failed to rename stage' });
+  }
+});
+
 // DELETE /api/stages/:id — delete a custom stage
 app.delete('/api/stages/:id', async (req, res) => {
   try {

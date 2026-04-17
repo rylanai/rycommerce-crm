@@ -346,6 +346,56 @@ export default function CRMPage() {
     }
   };
 
+  const renameColumn = async (oldName: string) => {
+    const newName = prompt("Rename column:", oldName);
+    if (!newName || newName.trim() === "" || newName.trim() === oldName) return;
+    if (allStages.includes(newName.trim())) {
+      alert("A column with that name already exists.");
+      return;
+    }
+    const trimmed = newName.trim();
+
+    // Update leads in this column to the new name
+    const leadsInColumn = leads.filter((l) => l.stage === oldName);
+    setLeads((prev) =>
+      prev.map((l) => (l.stage === oldName ? { ...l, stage: trimmed } : l))
+    );
+
+    // Update column order
+    const newOrder = allStages.map((s) => (s === oldName ? trimmed : s));
+    saveColumnOrder(newOrder);
+
+    // Update custom stage if it is one
+    const custom = customStages.find((s) => s.name === oldName);
+    if (custom) {
+      setCustomStages((prev) =>
+        prev.map((s) => (s.name === oldName ? { ...s, name: trimmed } : s))
+      );
+      try {
+        await fetch(`${API_URL}/api/stages/${custom.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed }),
+        });
+      } catch (err) {
+        console.error("Error renaming custom stage:", err);
+      }
+    }
+
+    // Update all leads in this column
+    for (const lead of leadsInColumn) {
+      try {
+        await fetch(`${API_URL}/api/leads/${lead.id}/stage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage: trimmed }),
+        });
+      } catch (err) {
+        console.error("Error updating lead stage:", err);
+      }
+    }
+  };
+
   useEffect(() => {
     if (authenticated) {
       fetchLeads();
@@ -495,7 +545,14 @@ export default function CRMPage() {
                             {...colProvided.dragHandleProps}
                             className="px-3 py-3 border-b border-gray-700 flex justify-between items-center cursor-grab"
                           >
-                            <h3 className="text-white text-sm font-semibold">
+                            <h3
+                              className="text-white text-sm font-semibold cursor-pointer"
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                renameColumn(stage);
+                              }}
+                              title="Double-click to rename"
+                            >
                               {stage}
                             </h3>
                             <div className="flex items-center gap-2">
