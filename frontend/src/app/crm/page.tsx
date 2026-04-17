@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   DragDropContext,
   Droppable,
@@ -281,6 +281,51 @@ export default function CRMPage() {
   const [sourceFilter, setSourceFilter] = useState("ALL");
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!scrollRef.current) return;
+      const container = scrollRef.current;
+      const rect = container.getBoundingClientRect();
+      const edgeZone = 100;
+
+      if (e.clientX > rect.right - edgeZone) {
+        if (!scrollInterval.current) {
+          scrollInterval.current = setInterval(() => {
+            container.scrollLeft += 12;
+          }, 16);
+        }
+      } else if (e.clientX < rect.left + edgeZone) {
+        if (!scrollInterval.current) {
+          scrollInterval.current = setInterval(() => {
+            container.scrollLeft -= 12;
+          }, 16);
+        }
+      } else {
+        if (scrollInterval.current) {
+          clearInterval(scrollInterval.current);
+          scrollInterval.current = null;
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (scrollInterval.current) {
+        clearInterval(scrollInterval.current);
+        scrollInterval.current = null;
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      if (scrollInterval.current) clearInterval(scrollInterval.current);
+    };
+  }, []);
 
   const defaultWithCustom = [...DEFAULT_STAGES, ...customStages.map((s) => s.name)];
   const allStages = columnOrder ? columnOrder : defaultWithCustom;
@@ -554,7 +599,7 @@ export default function CRMPage() {
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto p-4">
+      <div ref={scrollRef} className="flex-1 overflow-x-auto p-4">
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="board" type="COLUMN" direction="horizontal">
             {(boardProvided) => (
