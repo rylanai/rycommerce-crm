@@ -89,7 +89,7 @@ function LeadCard({
   const [addressCopied, setAddressCopied] = useState(false);
 
   const needsFollowUp = !lead.last_followed_up ||
-    (new Date().getTime() - new Date(lead.last_followed_up).getTime()) > 24 * 60 * 60 * 1000;
+    (new Date().getTime() - new Date(lead.last_followed_up).getTime()) > 15 * 60 * 60 * 1000;
 
   const copyMessage = (e: React.MouseEvent) => {
     e.stopPropagation();
