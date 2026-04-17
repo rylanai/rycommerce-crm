@@ -11,7 +11,7 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const PASSWORD = "rycommerce2024";
 
-const STAGES = [
+const DEFAULT_STAGES = [
   "New Lead",
   "No Answer",
   "Asking Price",
@@ -22,6 +22,12 @@ const STAGES = [
   "Closed",
   "Dead",
 ];
+
+interface CustomStage {
+  id: number;
+  name: string;
+  position: number;
+}
 
 const SOURCE_COLORS: Record<string, string> = {
   meta: "#3b82f6",
@@ -255,6 +261,9 @@ export default function CRMPage() {
   const [passwordInput, setPasswordInput] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [sourceFilter, setSourceFilter] = useState("ALL");
+  const [customStages, setCustomStages] = useState<CustomStage[]>([]);
+
+  const allStages = [...DEFAULT_STAGES, ...customStages.map((s) => s.name)];
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -266,13 +275,59 @@ export default function CRMPage() {
     }
   }, []);
 
+  const fetchStages = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/stages`);
+      const data = await res.json();
+      setCustomStages(data);
+    } catch (err) {
+      console.error("Error fetching stages:", err);
+    }
+  }, []);
+
+  const addCustomStage = async () => {
+    const name = prompt("Enter column name:");
+    if (!name || name.trim() === "") return;
+    if (allStages.includes(name.trim())) {
+      alert("A column with that name already exists.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/stages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), position: customStages.length }),
+      });
+      const newStage = await res.json();
+      setCustomStages((prev) => [...prev, newStage]);
+    } catch (err) {
+      console.error("Error adding stage:", err);
+    }
+  };
+
+  const deleteCustomStage = async (stage: CustomStage) => {
+    const stageLeads = leads.filter((l) => l.stage === stage.name);
+    if (stageLeads.length > 0) {
+      alert("Move all leads out of this column before deleting it.");
+      return;
+    }
+    if (!confirm(`Delete column "${stage.name}"?`)) return;
+    try {
+      await fetch(`${API_URL}/api/stages/${stage.id}`, { method: "DELETE" });
+      setCustomStages((prev) => prev.filter((s) => s.id !== stage.id));
+    } catch (err) {
+      console.error("Error deleting stage:", err);
+    }
+  };
+
   useEffect(() => {
     if (authenticated) {
       fetchLeads();
+      fetchStages();
       const interval = setInterval(fetchLeads, 10000);
       return () => clearInterval(interval);
     }
-  }, [authenticated, fetchLeads]);
+  }, [authenticated, fetchLeads, fetchStages]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,8 +437,9 @@ export default function CRMPage() {
       <div className="flex-1 overflow-x-auto p-4">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-3 min-w-max">
-            {STAGES.map((stage) => {
+            {allStages.map((stage) => {
               const stageLeads = getLeadsByStage(stage);
+              const isCustom = customStages.some((s) => s.name === stage);
               return (
                 <div
                   key={stage}
@@ -393,9 +449,20 @@ export default function CRMPage() {
                     <h3 className="text-white text-sm font-semibold">
                       {stage}
                     </h3>
-                    <span className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">
-                      {stageLeads.length}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">
+                        {stageLeads.length}
+                      </span>
+                      {isCustom && (
+                        <button
+                          onClick={() => deleteCustomStage(customStages.find((s) => s.name === stage)!)}
+                          className="text-gray-500 hover:text-red-400 cursor-pointer text-xs"
+                          title="Delete column"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <Droppable droppableId={stage}>
                     {(provided) => (
@@ -419,6 +486,12 @@ export default function CRMPage() {
                 </div>
               );
             })}
+            <button
+              onClick={addCustomStage}
+              className="w-72 min-h-[100px] bg-gray-800 rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-750 border-2 border-dashed border-gray-700 hover:border-gray-500 flex-shrink-0"
+            >
+              <span className="text-gray-500 text-2xl">+</span>
+            </button>
           </div>
         </DragDropContext>
       </div>

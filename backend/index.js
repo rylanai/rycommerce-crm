@@ -32,6 +32,13 @@ const initDB = async () => {
   const client = await pool.connect();
   try {
     await client.query(`
+      CREATE TABLE IF NOT EXISTS custom_stages (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) UNIQUE NOT NULL,
+        position INTEGER NOT NULL
+      );
+    `);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS leads (
         id SERIAL PRIMARY KEY,
         first_name VARCHAR(255),
@@ -170,6 +177,47 @@ app.delete('/api/leads/:id', async (req, res) => {
   } catch (err) {
     console.error('Error deleting lead:', err);
     res.status(500).json({ error: 'Failed to delete lead' });
+  }
+});
+
+// GET /api/stages — get custom stages
+app.get('/api/stages', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM custom_stages ORDER BY position ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching stages:', err);
+    res.status(500).json({ error: 'Failed to fetch stages' });
+  }
+});
+
+// POST /api/stages — create a custom stage
+app.post('/api/stages', async (req, res) => {
+  try {
+    const { name, position } = req.body;
+    const result = await pool.query(
+      'INSERT INTO custom_stages (name, position) VALUES ($1, $2) RETURNING *',
+      [name, position]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating stage:', err);
+    res.status(500).json({ error: 'Failed to create stage' });
+  }
+});
+
+// DELETE /api/stages/:id — delete a custom stage
+app.delete('/api/stages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM custom_stages WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Stage not found' });
+    }
+    res.json({ message: 'Stage deleted' });
+  } catch (err) {
+    console.error('Error deleting stage:', err);
+    res.status(500).json({ error: 'Failed to delete stage' });
   }
 });
 
