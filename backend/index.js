@@ -68,6 +68,10 @@ const initDB = async () => {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
+    // Add last_followed_up column if it doesn't exist
+    await client.query(`
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_followed_up TIMESTAMP;
+    `);
     console.log('Database initialized');
   } finally {
     client.release();
@@ -145,7 +149,8 @@ app.patch('/api/leads/:id', async (req, res) => {
       'first_name', 'last_name', 'email', 'phone', 'property_address',
       'wants_to_sell', 'timeline', 'repairs', 'sell_reason', 'stage',
       'source', 'utm_campaign', 'utm_source',
-      'sub_id_1', 'sub_id_2', 'sub_id_3', 'sub_id_4', 'sub_id_5'
+      'sub_id_1', 'sub_id_2', 'sub_id_3', 'sub_id_4', 'sub_id_5',
+      'last_followed_up'
     ];
     const fields = req.body;
     const keys = Object.keys(fields).filter(k => allowedFields.includes(k));

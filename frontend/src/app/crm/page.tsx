@@ -56,6 +56,7 @@ interface Lead {
   sub_id_4: string;
   sub_id_5: string;
   created_at: string;
+  last_followed_up: string | null;
 }
 
 function timeAgo(dateStr: string) {
@@ -74,15 +75,19 @@ function LeadCard({
   lead,
   index,
   onDelete,
+  onFollowUp,
 }: {
   lead: Lead;
   index: number;
   onDelete: (id: number) => void;
+  onFollowUp: (id: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
-  const srcColor = SOURCE_COLORS[lead.source?.toLowerCase()] || "#6b7280";
+
+  const needsFollowUp = !lead.last_followed_up ||
+    (new Date().getTime() - new Date(lead.last_followed_up).getTime()) > 24 * 60 * 60 * 1000;
 
   const copyMessage = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -125,11 +130,22 @@ function LeadCard({
                   )}
                 </button>
               )}
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: srcColor }}
-                title={lead.source?.toUpperCase()}
-              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (needsFollowUp) {
+                    onFollowUp(lead.id);
+                  }
+                }}
+                className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
+                  needsFollowUp
+                    ? "bg-red-500 text-white pulse-red"
+                    : "bg-green-500 text-white"
+                }`}
+                title={needsFollowUp ? "Click to mark as followed up" : "Followed up"}
+              >
+                {needsFollowUp ? "Follow Up" : "✓"}
+              </button>
             </div>
           </div>
           <p className="text-xs mb-1">
@@ -405,6 +421,22 @@ export default function CRMPage() {
     }
   }, [authenticated, fetchLeads, fetchStages]);
 
+  const handleFollowUp = async (id: number) => {
+    const now = new Date().toISOString();
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, last_followed_up: now } : l))
+    );
+    try {
+      await fetch(`${API_URL}/api/leads/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ last_followed_up: now }),
+      });
+    } catch (err) {
+      console.error("Error updating follow-up:", err);
+    }
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === PASSWORD) {
@@ -594,6 +626,7 @@ export default function CRMPage() {
                                     lead={lead}
                                     index={index}
                                     onDelete={handleDelete}
+                                    onFollowUp={handleFollowUp}
                                   />
                                 ))}
                                 {provided.placeholder}
