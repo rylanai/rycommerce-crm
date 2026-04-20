@@ -596,13 +596,6 @@ export default function CRMPage() {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-gray-400 text-sm">
-            {filteredLeads.filter((l) => {
-              const today = new Date();
-              const created = new Date(l.created_at);
-              return created.toDateString() === today.toDateString();
-            }).length} today
-          </span>
-          <span className="text-gray-400 text-sm">
             {filteredLeads.length} total
           </span>
           <span className="text-gray-500 text-sm">|</span>
