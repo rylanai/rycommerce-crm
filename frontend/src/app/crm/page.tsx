@@ -91,6 +91,7 @@ function LeadCard({
   const [copied, setCopied] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
 
+  const isDead = lead.stage.toLowerCase().includes("dead");
   const needsFollowUp = !lead.last_followed_up ||
     (new Date().getTime() - new Date(lead.last_followed_up).getTime()) > 15 * 60 * 60 * 1000;
 
@@ -110,7 +111,7 @@ function LeadCard({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={() => setExpanded(!expanded)}
-          className="bg-gray-800 rounded-lg p-3 mb-2 cursor-pointer hover:bg-gray-750 border border-gray-700"
+          className={`rounded-lg p-3 mb-2 cursor-pointer border ${isDead ? "bg-gray-900 border-gray-800 opacity-50" : "bg-gray-800 border-gray-700 hover:bg-gray-750"}`}
         >
           <div className="flex justify-between items-start mb-1">
             <span className="font-semibold text-white text-sm">
@@ -135,22 +136,24 @@ function LeadCard({
                   )}
                 </button>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (needsFollowUp) {
-                    onFollowUp(lead.id);
-                  }
-                }}
-                className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
-                  needsFollowUp
-                    ? "bg-red-500 text-white pulse-red"
-                    : "bg-green-500 text-white"
-                }`}
-                title={needsFollowUp ? "Click to mark as followed up" : "Followed up"}
-              >
-                {needsFollowUp ? "Follow Up" : "✓"}
-              </button>
+              {!isDead && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (needsFollowUp) {
+                      onFollowUp(lead.id);
+                    }
+                  }}
+                  className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
+                    needsFollowUp
+                      ? "bg-red-500 text-white pulse-red"
+                      : "bg-green-500 text-white"
+                  }`}
+                  title={needsFollowUp ? "Click to mark as followed up" : "Followed up"}
+                >
+                  {needsFollowUp ? "Follow Up" : "✓"}
+                </button>
+              )}
             </div>
           </div>
           <p className="text-xs mb-1">
