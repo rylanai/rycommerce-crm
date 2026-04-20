@@ -281,6 +281,7 @@ export default function CRMPage() {
   const [sourceFilter, setSourceFilter] = useState("ALL");
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -604,6 +605,22 @@ export default function CRMPage() {
           <span className="text-gray-400 text-sm">
             {filteredLeads.length} total
           </span>
+          <span className="text-gray-500 text-sm">|</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-gray-700 text-gray-300 text-sm rounded-lg px-2 py-1 border border-gray-600 outline-none"
+            />
+            <span className="text-gray-400 text-sm">
+              {filteredLeads.filter((l) => {
+                const created = new Date(l.created_at);
+                const selected = new Date(selectedDate + "T00:00:00");
+                return created.toDateString() === selected.toDateString();
+              }).length} leads
+            </span>
+          </div>
         </div>
       </div>
 
