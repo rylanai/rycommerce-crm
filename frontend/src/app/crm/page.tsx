@@ -57,6 +57,7 @@ interface Lead {
   sub_id_5: string;
   created_at: string;
   last_followed_up: string | null;
+  notes: string | null;
 }
 
 function timeAgo(dateStr: string) {
@@ -76,12 +77,14 @@ function LeadCard({
   index,
   onDelete,
   onFollowUp,
+  onUpdateNotes,
   firstColumnName,
 }: {
   lead: Lead;
   index: number;
   onDelete: (id: number) => void;
   onFollowUp: (id: number) => void;
+  onUpdateNotes: (id: number, notes: string) => void;
   firstColumnName: string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -173,9 +176,16 @@ function LeadCard({
           >
             {addressCopied ? "Copied!" : lead.property_address}
           </p>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-500 text-xs">{lead.timeline}</span>
-            <span className="text-gray-500 text-xs">
+          <div className="flex items-center gap-1 mb-1">
+            <input
+              type="text"
+              placeholder="Add note..."
+              value={lead.notes || ""}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => onUpdateNotes(lead.id, e.target.value)}
+              className="flex-1 bg-transparent text-gray-400 text-xs outline-none border-b border-transparent focus:border-gray-600 placeholder-gray-600"
+            />
+            <span className="text-gray-500 text-xs flex-shrink-0">
               {timeAgo(lead.created_at)}
             </span>
           </div>
@@ -468,6 +478,27 @@ export default function CRMPage() {
     }
   }, [authenticated, fetchLeads, fetchStages]);
 
+  const notesTimerRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  const handleUpdateNotes = (id: number, notes: string) => {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, notes } : l))
+    );
+    // Debounce the API call
+    if (notesTimerRef.current[id]) clearTimeout(notesTimerRef.current[id]);
+    notesTimerRef.current[id] = setTimeout(async () => {
+      try {
+        await fetch(`${API_URL}/api/leads/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes }),
+        });
+      } catch (err) {
+        console.error("Error updating notes:", err);
+      }
+    }, 500);
+  };
+
   const handleFollowUp = async (id: number) => {
     const now = new Date().toISOString();
     setLeads((prev) =>
@@ -692,6 +723,7 @@ export default function CRMPage() {
                                     index={index}
                                     onDelete={handleDelete}
                                     onFollowUp={handleFollowUp}
+                                    onUpdateNotes={handleUpdateNotes}
                                     firstColumnName={firstColumnName}
                                   />
                                 ))}
