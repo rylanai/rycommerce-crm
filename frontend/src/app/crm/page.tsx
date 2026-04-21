@@ -179,16 +179,27 @@ function LeadCard({
           >
             {addressCopied ? "Copied!" : lead.property_address}
           </p>
-          <div className="flex items-center gap-1 mb-1">
-            <input
-              type="text"
-              placeholder="Add note..."
-              value={lead.notes || ""}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => onUpdateNotes(lead.id, e.target.value)}
-              className="flex-1 bg-transparent text-gray-400 text-xs outline-none border-b border-transparent focus:border-gray-600 placeholder-gray-600"
-            />
-            <span className="text-gray-500 text-xs flex-shrink-0">
+          <textarea
+            placeholder="Add note..."
+            value={lead.notes || ""}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onUpdateNotes(lead.id, e.target.value)}
+            rows={1}
+            ref={(el) => {
+              if (el) {
+                el.style.height = "auto";
+                el.style.height = el.scrollHeight + "px";
+              }
+            }}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              el.style.height = "auto";
+              el.style.height = el.scrollHeight + "px";
+            }}
+            className="w-full bg-gray-900/40 text-gray-300 text-xs outline-none border border-gray-700 focus:border-gray-500 rounded-md px-2 py-1.5 placeholder-gray-600 resize-none overflow-hidden mb-1 leading-snug"
+          />
+          <div className="flex justify-end">
+            <span className="text-gray-500 text-xs">
               {timeAgo(lead.created_at)}
             </span>
           </div>
