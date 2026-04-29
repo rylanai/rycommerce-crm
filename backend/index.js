@@ -141,8 +141,8 @@ app.post('/api/leads/propertyleads', async (req, res) => {
       return '';
     };
 
-    let first_name = pick('first_name', 'firstName', 'fname', 'first');
-    let last_name = pick('last_name', 'lastName', 'lname', 'last');
+    let first_name = pick('First Name', 'first_name', 'firstName', 'fname', 'first');
+    let last_name = pick('Last Name', 'last_name', 'lastName', 'lname', 'last');
     if (!first_name && !last_name) {
       const full = pick('name', 'full_name', 'fullName', 'contact_name');
       if (full) {
@@ -152,25 +152,44 @@ app.post('/api/leads/propertyleads', async (req, res) => {
       }
     }
 
-    const email = pick('email', 'email_address', 'emailAddress');
-    const phone = pick('phone', 'phone_number', 'phoneNumber', 'phone1', 'mobile', 'cell');
+    const email = pick('Email', 'email', 'email_address', 'emailAddress');
+    const phone = pick('Primary Phone', 'phone', 'phone_number', 'phoneNumber', 'phone1', 'mobile', 'cell');
 
-    let property_address = pick('property_address', 'address', 'propertyAddress', 'street_address', 'streetAddress');
-    if (!property_address) {
-      const street = pick('street', 'address1', 'address_line_1');
-      const city = pick('city');
-      const state = pick('state', 'region');
-      const zip = pick('zip', 'zipcode', 'zip_code', 'postal_code', 'postalCode');
-      property_address = [street, city, state, zip].filter(Boolean).join(', ');
-    }
+    const street = pick('Property Address', 'property_address', 'propertyAddress', 'address', 'street_address', 'streetAddress', 'street', 'address1', 'address_line_1');
+    const city = pick('City', 'city');
+    const state = pick('State', 'state', 'region');
+    const zip = pick('Zip', 'zip', 'zipcode', 'zip_code', 'postal_code', 'postalCode');
+    const county = pick('County', 'county');
+    let property_address = [street, city, state, zip].filter(Boolean).join(', ');
+    if (!property_address) property_address = street || '';
 
-    const timeline = pick('timeline', 'time_frame', 'timeframe');
-    const repairs = pick('repairs', 'condition', 'property_condition');
-    const sell_reason = pick('sell_reason', 'reason', 'motivation', 'why_selling');
+    const timeline = pick('Time Frame To Sell', 'timeline', 'time_frame', 'timeframe');
+    const repairs = pick('Repairs Maintenance Needed', 'repairs', 'condition', 'property_condition');
+    const sell_reason = pick('Reason For Selling', 'sell_reason', 'reason', 'motivation', 'why_selling');
     const wants_to_sell = pick('wants_to_sell', 'interested') || 'yes';
 
-    // Stash full raw payload in notes so nothing is lost if a field is unmapped
-    const notes = `[propertyleads webhook ${new Date().toISOString()}]\n` + JSON.stringify(p, null, 2);
+    const askingPrice = pick('Asking Price', 'asking_price');
+    const ownedHowLong = pick('How Long Owned Property', 'how_long_owned');
+    const livingInHouse = pick('Anyone Living In House', 'anyone_living_in_house');
+    const comments = pick('Comments', 'comments');
+    const leadCost = pick('Lead Cost', 'lead_cost');
+    const leadId = pick('Lead ID', 'lead_id');
+    const dateCreated = pick('Date Created', 'date_created');
+
+    const summaryLines = [
+      askingPrice && `Asking Price: ${askingPrice}`,
+      ownedHowLong && `Owned: ${ownedHowLong}`,
+      livingInHouse && `Living In House: ${livingInHouse}`,
+      county && `County: ${county}`,
+      leadCost && `Lead Cost: ${leadCost}`,
+      leadId && `PL Lead ID: ${leadId}`,
+      dateCreated && `PL Date: ${dateCreated}`,
+      comments && `Comments: ${comments}`,
+    ].filter(Boolean).join('\n');
+
+    // Surface the most useful PL extras at the top of notes, then full raw payload
+    const notes = (summaryLines ? summaryLines + '\n\n' : '') +
+      `[propertyleads webhook ${new Date().toISOString()}]\n` + JSON.stringify(p, null, 2);
 
     let defaultStage = 'New Lead';
     try {
