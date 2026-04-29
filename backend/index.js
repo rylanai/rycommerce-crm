@@ -124,6 +124,84 @@ app.post('/api/leads', async (req, res) => {
   }
 });
 
+// POST /api/leads/propertyleads — webhook ingest from PropertyLeads.com
+// Optional auth: if PROPERTYLEADS_WEBHOOK_TOKEN is set, require ?token= match.
+app.post('/api/leads/propertyleads', async (req, res) => {
+  try {
+    const expectedToken = process.env.PROPERTYLEADS_WEBHOOK_TOKEN;
+    if (expectedToken && req.query.token !== expectedToken) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const p = req.body || {};
+    const pick = (...keys) => {
+      for (const k of keys) {
+        if (p[k] !== undefined && p[k] !== null && p[k] !== '') return p[k];
+      }
+      return '';
+    };
+
+    let first_name = pick('first_name', 'firstName', 'fname', 'first');
+    let last_name = pick('last_name', 'lastName', 'lname', 'last');
+    if (!first_name && !last_name) {
+      const full = pick('name', 'full_name', 'fullName', 'contact_name');
+      if (full) {
+        const parts = String(full).trim().split(/\s+/);
+        first_name = parts[0] || '';
+        last_name = parts.slice(1).join(' ');
+      }
+    }
+
+    const email = pick('email', 'email_address', 'emailAddress');
+    const phone = pick('phone', 'phone_number', 'phoneNumber', 'phone1', 'mobile', 'cell');
+
+    let property_address = pick('property_address', 'address', 'propertyAddress', 'street_address', 'streetAddress');
+    if (!property_address) {
+      const street = pick('street', 'address1', 'address_line_1');
+      const city = pick('city');
+      const state = pick('state', 'region');
+      const zip = pick('zip', 'zipcode', 'zip_code', 'postal_code', 'postalCode');
+      property_address = [street, city, state, zip].filter(Boolean).join(', ');
+    }
+
+    const timeline = pick('timeline', 'time_frame', 'timeframe');
+    const repairs = pick('repairs', 'condition', 'property_condition');
+    const sell_reason = pick('sell_reason', 'reason', 'motivation', 'why_selling');
+    const wants_to_sell = pick('wants_to_sell', 'interested') || 'yes';
+
+    // Stash full raw payload in notes so nothing is lost if a field is unmapped
+    const notes = `[propertyleads webhook ${new Date().toISOString()}]\n` + JSON.stringify(p, null, 2);
+
+    let defaultStage = 'New Lead';
+    try {
+      const orderResult = await pool.query("SELECT value FROM settings WHERE key = 'column_order'");
+      if (orderResult.rows.length > 0) {
+        const order = JSON.parse(orderResult.rows[0].value);
+        if (order && order.length > 0) defaultStage = order[0];
+      }
+    } catch (e) { /* use default */ }
+
+    const result = await pool.query(
+      `INSERT INTO leads (
+        first_name, last_name, email, phone, property_address,
+        wants_to_sell, timeline, repairs, sell_reason,
+        stage, source, notes
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING *`,
+      [first_name, last_name, email, phone, property_address,
+       wants_to_sell, timeline, repairs, sell_reason,
+       defaultStage, 'propertyleads', notes]
+    );
+
+    const newLead = result.rows[0];
+    res.status(201).json(newLead);
+    notifySlack(newLead);
+  } catch (err) {
+    console.error('Error creating propertyleads lead:', err);
+    res.status(500).json({ error: 'Failed to create lead' });
+  }
+});
+
 // GET /api/leads — get all leads
 app.get('/api/leads', async (req, res) => {
   try {

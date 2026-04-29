@@ -33,6 +33,8 @@ const SOURCE_COLORS: Record<string, string> = {
   meta: "#3b82f6",
   sms: "#22c55e",
   ppc: "#f97316",
+  propertyleads: "#a855f7",
+  motivatedsellers: "#ec4899",
 };
 
 interface Lead {
@@ -625,7 +627,7 @@ export default function CRMPage() {
       <div className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-white text-xl font-bold">crmEscrow</h1>
         <div className="flex items-center gap-2">
-          {["ALL", "META", "SMS", "PPC"].map((src) => (
+          {["ALL", "META", "SMS", "PPC", "PROPERTYLEADS", "MOTIVATEDSELLERS"].map((src) => (
             <button
               key={src}
               onClick={() => setSourceFilter(src)}
