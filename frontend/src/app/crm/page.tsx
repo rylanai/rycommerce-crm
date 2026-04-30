@@ -379,6 +379,14 @@ export default function CRMPage() {
 
   const [tabStages, setTabStages] = useState<Record<string, string[]>>(() => {
     if (typeof window === "undefined") return {};
+    // Bust any tab-column lists saved before the server-data wait fix.
+    if (localStorage.getItem("crm_columns_version") !== "v2") {
+      for (const tab of ["META", "SMS", "PPC", "PPL"]) {
+        localStorage.removeItem(`crm_columns_${tab}`);
+      }
+      localStorage.setItem("crm_columns_version", "v2");
+      return {};
+    }
     const out: Record<string, string[]> = {};
     for (const tab of ["META", "SMS", "PPC", "PPL"]) {
       const raw = localStorage.getItem(`crm_columns_${tab}`);
@@ -389,9 +397,10 @@ export default function CRMPage() {
     return out;
   });
 
-  // Initialize any non-ALL tab that hasn't been customized yet by snapshotting
-  // the current global stages — keeps tabs independent going forward.
+  // Snapshot only after the server's real column_order has loaded — otherwise
+  // we'd seed tabs with bare DEFAULT_STAGES while the fetch is still in flight.
   useEffect(() => {
+    if (columnOrder === null) return;
     if (!globalStages || globalStages.length === 0) return;
     setTabStages((prev) => {
       const next = { ...prev };
@@ -407,7 +416,7 @@ export default function CRMPage() {
       }
       return changed ? next : prev;
     });
-  }, [globalStages]);
+  }, [columnOrder, globalStages]);
 
   const saveTabStages = (tab: string, list: string[]) => {
     setTabStages((prev) => ({ ...prev, [tab]: list }));
