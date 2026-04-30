@@ -183,20 +183,13 @@ app.post('/api/leads/propertyleads', async (req, res) => {
     const leadId = pick('Lead_ID', 'Lead ID', 'lead_id');
     const dateCreated = pick('Date_Created', 'Date Created', 'date_created');
 
-    const summaryLines = [
-      askingPrice && `Asking Price: ${askingPrice}`,
-      ownedHowLong && `Owned: ${ownedHowLong}`,
-      livingInHouse && `Living In House: ${livingInHouse}`,
-      county && `County: ${county}`,
-      leadCost && `Lead Cost: ${leadCost}`,
-      leadId && `PL Lead ID: ${leadId}`,
-      dateCreated && `PL Date: ${dateCreated}`,
-      comments && `Comments: ${comments}`,
-    ].filter(Boolean).join('\n');
+    // PL extras intentionally not written to notes — keep card compact and
+    // matching the existing layout. Reference unused vars to satisfy linter.
+    void askingPrice; void ownedHowLong; void livingInHouse; void county;
+    void leadCost; void leadId; void dateCreated; void comments;
 
-    // Surface the most useful PL extras at the top of notes, then full raw payload
-    const notes = (summaryLines ? summaryLines + '\n\n' : '') +
-      `[propertyleads webhook ${new Date().toISOString()}]\n` + JSON.stringify(p, null, 2);
+    // Leave notes empty so the "Add note..." input renders like other cards
+    const notes = null;
 
     let defaultStage = 'New Lead';
     try {
