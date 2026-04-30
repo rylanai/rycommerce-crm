@@ -221,6 +221,79 @@ app.post('/api/leads/propertyleads', async (req, res) => {
   }
 });
 
+// POST /api/leads/motivatedsellers — webhook ingest from MotivatedSellers.com
+app.post('/api/leads/motivatedsellers', async (req, res) => {
+  try {
+    const expectedToken = process.env.MOTIVATEDSELLERS_WEBHOOK_TOKEN;
+    if (expectedToken && req.query.token !== expectedToken) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    console.log('[motivatedsellers] content-type:', req.headers['content-type']);
+    console.log('[motivatedsellers] query:', JSON.stringify(req.query));
+    console.log('[motivatedsellers] body:', JSON.stringify(req.body));
+
+    const p = { ...(req.query || {}), ...(req.body || {}) };
+    const pick = (...keys) => {
+      for (const k of keys) {
+        if (p[k] !== undefined && p[k] !== null && p[k] !== '') return p[k];
+      }
+      return '';
+    };
+
+    const first_name = pick('first_name');
+    const last_name = pick('last_name');
+    const email = pick('email_address', 'email');
+    const phone = pick('phone');
+
+    const street = pick('address');
+    const address2 = pick('address_2');
+    const city = pick('city');
+    const state = pick('state');
+    const zip = pick('zip_code', 'zipcode');
+    const property_address = [
+      [street, address2].filter(Boolean).join(' '),
+      city,
+      state,
+      zip,
+    ].filter(Boolean).join(', ');
+
+    const timeline = pick('timeframe');
+    const wants_to_sell = 'yes';
+
+    void pick('county'); void pick('bedrooms'); void pick('bathrooms');
+    void pick('estimated_value'); void pick('price'); void pick('lead_id'); void pick('account');
+
+    let defaultStage = 'New Lead';
+    try {
+      const orderResult = await pool.query("SELECT value FROM settings WHERE key = 'column_order'");
+      if (orderResult.rows.length > 0) {
+        const order = JSON.parse(orderResult.rows[0].value);
+        if (order && order.length > 0) defaultStage = order[0];
+      }
+    } catch (e) { /* use default */ }
+
+    const result = await pool.query(
+      `INSERT INTO leads (
+        first_name, last_name, email, phone, property_address,
+        wants_to_sell, timeline, repairs, sell_reason,
+        stage, source, notes
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING *`,
+      [first_name, last_name, email, phone, property_address,
+       wants_to_sell, timeline, '', '',
+       defaultStage, 'motivatedsellers', null]
+    );
+
+    const newLead = result.rows[0];
+    res.status(201).json(newLead);
+    notifySlack(newLead);
+  } catch (err) {
+    console.error('Error creating motivatedsellers lead:', err);
+    res.status(500).json({ error: 'Failed to create lead' });
+  }
+});
+
 // GET /api/leads — get all leads
 app.get('/api/leads', async (req, res) => {
   try {
