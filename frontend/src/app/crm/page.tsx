@@ -305,6 +305,15 @@ export default function CRMPage() {
   const [passwordInput, setPasswordInput] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [sourceFilter, setSourceFilter] = useState("ALL");
+  const [chipOrder, setChipOrder] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("crm_chip_order");
+      if (saved) {
+        try { return JSON.parse(saved); } catch {}
+      }
+    }
+    return ["ALL", "META", "SMS", "PPC", "PPL"];
+  });
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -541,12 +550,21 @@ export default function CRMPage() {
     }
   };
 
+  const CHIP_SOURCES: Record<string, string[]> = {
+    ALL: [],
+    META: ["meta"],
+    SMS: ["sms"],
+    PPC: ["ppc"],
+    PPL: ["propertyleads", "motivatedsellers"],
+  };
+
   const filteredLeads =
     sourceFilter === "ALL"
       ? leads
-      : leads.filter(
-          (l) => l.source?.toLowerCase() === sourceFilter.toLowerCase()
-        );
+      : leads.filter((l) => {
+          const sources = CHIP_SOURCES[sourceFilter] || [sourceFilter.toLowerCase()];
+          return sources.includes((l.source || "").toLowerCase());
+        });
 
   const getLeadsByStage = (stage: string) =>
     filteredLeads.filter((l) => l.stage === stage);
@@ -563,6 +581,18 @@ export default function CRMPage() {
 
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
+
+    // Chip reorder
+    if (result.type === "CHIP") {
+      const newOrder = [...chipOrder];
+      const [moved] = newOrder.splice(result.source.index, 1);
+      newOrder.splice(result.destination.index, 0, moved);
+      setChipOrder(newOrder);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("crm_chip_order", JSON.stringify(newOrder));
+      }
+      return;
+    }
 
     // Column reorder
     if (result.type === "COLUMN") {
@@ -626,28 +656,38 @@ export default function CRMPage() {
       {/* Top Bar */}
       <div className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-white text-xl font-bold">crmEscrow</h1>
-        <div className="flex items-center gap-2">
-          {[
-            { label: "ALL", value: "ALL" },
-            { label: "META", value: "META" },
-            { label: "SMS", value: "SMS" },
-            { label: "PPC", value: "PPC" },
-            { label: "PPL", value: "PROPERTYLEADS" },
-            { label: "MOTIVATEDSELLERS", value: "MOTIVATEDSELLERS" },
-          ].map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => setSourceFilter(value)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer transition-colors ${
-                sourceFilter === value
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="chips" type="CHIP" direction="horizontal">
+            {(provided) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="flex items-center gap-2"
+              >
+                {chipOrder.map((value, index) => (
+                  <Draggable key={value} draggableId={`chip-${value}`} index={index}>
+                    {(dragProvided, dragSnapshot) => (
+                      <button
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        {...dragProvided.dragHandleProps}
+                        onClick={() => setSourceFilter(value)}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer transition-colors ${
+                          sourceFilter === value
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        } ${dragSnapshot.isDragging ? "opacity-80 shadow-lg" : ""}`}
+                      >
+                        {value}
+                      </button>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
         <div className="flex items-center gap-4">
           <span className="text-gray-400 text-sm">
             {filteredLeads.length} total
