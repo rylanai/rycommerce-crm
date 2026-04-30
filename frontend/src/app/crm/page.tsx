@@ -375,7 +375,49 @@ export default function CRMPage() {
   }, []);
 
   const defaultWithCustom = [...DEFAULT_STAGES, ...customStages.map((s) => s.name)];
-  const allStages = columnOrder ? columnOrder : defaultWithCustom;
+  const globalStages = columnOrder ? columnOrder : defaultWithCustom;
+
+  const [tabStages, setTabStages] = useState<Record<string, string[]>>(() => {
+    if (typeof window === "undefined") return {};
+    const out: Record<string, string[]> = {};
+    for (const tab of ["META", "SMS", "PPC", "PPL"]) {
+      const raw = localStorage.getItem(`crm_columns_${tab}`);
+      if (raw) {
+        try { out[tab] = JSON.parse(raw); } catch {}
+      }
+    }
+    return out;
+  });
+
+  // Initialize any non-ALL tab that hasn't been customized yet by snapshotting
+  // the current global stages — keeps tabs independent going forward.
+  useEffect(() => {
+    if (!globalStages || globalStages.length === 0) return;
+    setTabStages((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const tab of ["META", "SMS", "PPC", "PPL"]) {
+        if (!next[tab]) {
+          next[tab] = [...globalStages];
+          if (typeof window !== "undefined") {
+            localStorage.setItem(`crm_columns_${tab}`, JSON.stringify(next[tab]));
+          }
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [globalStages]);
+
+  const saveTabStages = (tab: string, list: string[]) => {
+    setTabStages((prev) => ({ ...prev, [tab]: list }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`crm_columns_${tab}`, JSON.stringify(list));
+    }
+  };
+
+  const allStages =
+    sourceFilter === "ALL" ? globalStages : (tabStages[sourceFilter] || globalStages);
   const firstColumnName = allStages[0] || "New Lead";
 
   const fetchLeads = useCallback(async () => {
@@ -421,20 +463,40 @@ export default function CRMPage() {
   const addCustomStage = async () => {
     const name = prompt("Enter column name:");
     if (!name || name.trim() === "") return;
-    if (allStages.includes(name.trim())) {
+    const trimmed = name.trim();
+    if (allStages.includes(trimmed)) {
       alert("A column with that name already exists.");
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/stages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), position: customStages.length }),
-      });
-      const newStage = await res.json();
-      setCustomStages((prev) => [...prev, newStage]);
-      const newOrder = [...allStages, name.trim()];
-      saveColumnOrder(newOrder);
+      // Always create the stage globally (backend) so a lead's stage value is
+      // valid regardless of which tab created the column.
+      const isKnown =
+        DEFAULT_STAGES.includes(trimmed) ||
+        customStages.some((s) => s.name === trimmed);
+      if (!isKnown) {
+        const res = await fetch(`${API_URL}/api/stages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmed, position: customStages.length }),
+        });
+        const newStage = await res.json();
+        setCustomStages((prev) => [...prev, newStage]);
+      }
+
+      if (sourceFilter === "ALL") {
+        // ALL tab: append to global column order so every tab sees it as a known stage
+        const newOrder = [...globalStages, trimmed];
+        saveColumnOrder(newOrder);
+      } else {
+        // Non-ALL tab: only add to this tab's list. Also append to ALL's order
+        // so the column shows on the master view (otherwise leads in this stage
+        // would be invisible on ALL).
+        saveTabStages(sourceFilter, [...allStages, trimmed]);
+        if (!globalStages.includes(trimmed)) {
+          saveColumnOrder([...globalStages, trimmed]);
+        }
+      }
     } catch (err) {
       console.error("Error adding stage:", err);
     }
@@ -470,9 +532,14 @@ export default function CRMPage() {
       prev.map((l) => (l.stage === oldName ? { ...l, stage: trimmed } : l))
     );
 
-    // Update column order
-    const newOrder = allStages.map((s) => (s === oldName ? trimmed : s));
-    saveColumnOrder(newOrder);
+    // Update global column order and every per-tab list so the renamed column
+    // stays visible everywhere it was before.
+    saveColumnOrder(globalStages.map((s) => (s === oldName ? trimmed : s)));
+    for (const [t, list] of Object.entries(tabStages)) {
+      if (list.includes(oldName)) {
+        saveTabStages(t, list.map((s) => (s === oldName ? trimmed : s)));
+      }
+    }
 
     // Update custom stage if it is one
     const custom = customStages.find((s) => s.name === oldName);
@@ -610,7 +677,11 @@ export default function CRMPage() {
       const newOrder = [...allStages];
       const [moved] = newOrder.splice(result.source.index, 1);
       newOrder.splice(result.destination.index, 0, moved);
-      saveColumnOrder(newOrder);
+      if (sourceFilter === "ALL") {
+        saveColumnOrder(newOrder);
+      } else {
+        saveTabStages(sourceFilter, newOrder);
+      }
       return;
     }
 
@@ -772,13 +843,22 @@ export default function CRMPage() {
                                     alert("Move all leads out of this column before deleting it.");
                                     return;
                                   }
-                                  if (!confirm(`Delete column "${stage}"?`)) return;
+                                  if (sourceFilter !== "ALL") {
+                                    if (!confirm(`Hide column "${stage}" from ${sourceFilter}? (Other tabs keep it.)`)) return;
+                                    saveTabStages(sourceFilter, allStages.filter((s) => s !== stage));
+                                    return;
+                                  }
+                                  if (!confirm(`Delete column "${stage}"? (This removes it everywhere.)`)) return;
                                   const custom = customStages.find((s) => s.name === stage);
                                   if (custom) {
                                     deleteCustomStage(custom);
                                   }
-                                  const newOrder = allStages.filter((s) => s !== stage);
+                                  const newOrder = globalStages.filter((s) => s !== stage);
                                   saveColumnOrder(newOrder);
+                                  // Also remove from every per-tab list so it doesn't reappear
+                                  for (const t of Object.keys(tabStages)) {
+                                    saveTabStages(t, tabStages[t].filter((s) => s !== stage));
+                                  }
                                 }}
                                 className="text-gray-500 hover:text-red-400 cursor-pointer text-xs"
                                 title="Delete column"
