@@ -113,8 +113,18 @@ function LeadCard({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={() => setExpanded(!expanded)}
-          className={`rounded-lg p-3 mb-2 cursor-pointer border ${isDead ? "bg-gray-900 border-gray-800 opacity-50" : "bg-gray-800 border-gray-700 hover:bg-gray-750"}`}
+          className={`relative rounded-lg p-3 mb-2 cursor-pointer border ${isDead ? "bg-gray-900 border-gray-800 opacity-50" : "bg-gray-800 border-gray-700 hover:bg-gray-750"}`}
         >
+          {(lead.source === "propertyleads" || lead.source === "motivatedsellers") && (
+            <div
+              className="absolute -top-2 left-4 w-4 h-6 shadow-md pointer-events-none"
+              style={{
+                backgroundColor: lead.source === "propertyleads" ? "#a855f7" : "#eab308",
+                clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 70%, 0 100%)",
+              }}
+              title={lead.source === "propertyleads" ? "PropertyLeads" : "MotivatedSellers"}
+            />
+          )}
           <div className="flex justify-between items-start mb-1">
             <span className="font-semibold text-white text-sm">
               {lead.first_name} {lead.last_name}
