@@ -7,6 +7,7 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
+import TemplatesDrawer from "./TemplatesDrawer";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const PASSWORD = "rycommerce2024";
@@ -338,6 +339,7 @@ export default function CRMPage() {
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -794,6 +796,13 @@ export default function CRMPage() {
           </Droppable>
         </DragDropContext>
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setTemplatesOpen(true)}
+            className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-semibold cursor-pointer"
+            title="Open message templates"
+          >
+            Templates
+          </button>
           <span className="text-gray-400 text-sm">
             {filteredLeads.length} total
           </span>
@@ -930,6 +939,8 @@ export default function CRMPage() {
       <div className="bg-gray-800 border-t border-gray-700 px-6 py-3 text-center">
         <p className="text-gray-500 text-sm">&copy; 2025 Ry Commerce LLC</p>
       </div>
+
+      <TemplatesDrawer open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
     </div>
   );
 }
