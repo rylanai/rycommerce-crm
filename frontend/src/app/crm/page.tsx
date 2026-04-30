@@ -304,7 +304,18 @@ export default function CRMPage() {
   });
   const [passwordInput, setPasswordInput] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [sourceFilter, setSourceFilter] = useState("ALL");
+  const [sourceFilter, setSourceFilterState] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("crm_source_filter") || "ALL";
+    }
+    return "ALL";
+  });
+  const setSourceFilter = (v: string) => {
+    setSourceFilterState(v);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("crm_source_filter", v);
+    }
+  };
   const [chipOrder, setChipOrder] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("crm_chip_order");
@@ -667,19 +678,23 @@ export default function CRMPage() {
                 {chipOrder.map((value, index) => (
                   <Draggable key={value} draggableId={`chip-${value}`} index={index}>
                     {(dragProvided, dragSnapshot) => (
-                      <button
+                      <div
                         ref={dragProvided.innerRef}
                         {...dragProvided.draggableProps}
                         {...dragProvided.dragHandleProps}
-                        onClick={() => setSourceFilter(value)}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer transition-colors ${
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          if (!dragSnapshot.isDragging) setSourceFilter(value);
+                        }}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold cursor-grab active:cursor-grabbing transition-colors select-none ${
                           sourceFilter === value
                             ? "bg-blue-600 text-white"
                             : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                         } ${dragSnapshot.isDragging ? "opacity-80 shadow-lg" : ""}`}
                       >
                         {value}
-                      </button>
+                      </div>
                     )}
                   </Draggable>
                 ))}
