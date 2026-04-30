@@ -117,7 +117,7 @@ function LeadCard({
         >
           {(lead.source === "propertyleads" || lead.source === "motivatedsellers") && (
             <div
-              className="absolute -top-2 left-4 w-4 h-6 shadow-md pointer-events-none"
+              className="absolute -top-1 left-3 w-2.5 h-4 shadow-md pointer-events-none"
               style={{
                 backgroundColor: lead.source === "propertyleads" ? "#a855f7" : "#eab308",
                 clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 70%, 0 100%)",
