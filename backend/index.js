@@ -22,6 +22,7 @@ async function notifySlack(lead) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -133,7 +134,13 @@ app.post('/api/leads/propertyleads', async (req, res) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    const p = req.body || {};
+    // Log content-type, query, and body so we can see exactly what PL sent
+    console.log('[propertyleads] content-type:', req.headers['content-type']);
+    console.log('[propertyleads] query:', JSON.stringify(req.query));
+    console.log('[propertyleads] body:', JSON.stringify(req.body));
+
+    // Merge body + query so we catch leads delivered as either POST body OR GET-style query params
+    const p = { ...(req.query || {}), ...(req.body || {}) };
     const pick = (...keys) => {
       for (const k of keys) {
         if (p[k] !== undefined && p[k] !== null && p[k] !== '') return p[k];
