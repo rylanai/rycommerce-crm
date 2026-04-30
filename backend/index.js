@@ -148,8 +148,8 @@ app.post('/api/leads/propertyleads', async (req, res) => {
       return '';
     };
 
-    let first_name = pick('First Name', 'first_name', 'firstName', 'fname', 'first');
-    let last_name = pick('Last Name', 'last_name', 'lastName', 'lname', 'last');
+    let first_name = pick('First_Name', 'First Name', 'first_name', 'firstName', 'fname', 'first');
+    let last_name = pick('Last_Name', 'Last Name', 'last_name', 'lastName', 'lname', 'last');
     if (!first_name && !last_name) {
       const full = pick('name', 'full_name', 'fullName', 'contact_name');
       if (full) {
@@ -160,9 +160,9 @@ app.post('/api/leads/propertyleads', async (req, res) => {
     }
 
     const email = pick('Email', 'email', 'email_address', 'emailAddress');
-    const phone = pick('Primary Phone', 'phone', 'phone_number', 'phoneNumber', 'phone1', 'mobile', 'cell');
+    const phone = pick('Primary_Phone', 'Primary Phone', 'phone', 'phone_number', 'phoneNumber', 'phone1', 'mobile', 'cell');
 
-    const street = pick('Property Address', 'property_address', 'propertyAddress', 'address', 'street_address', 'streetAddress', 'street', 'address1', 'address_line_1');
+    const street = pick('Property_Address', 'Property Address', 'property_address', 'propertyAddress', 'address', 'street_address', 'streetAddress', 'street', 'address1', 'address_line_1');
     const city = pick('City', 'city');
     const state = pick('State', 'state', 'region');
     const zip = pick('Zip', 'zip', 'zipcode', 'zip_code', 'postal_code', 'postalCode');
@@ -170,18 +170,18 @@ app.post('/api/leads/propertyleads', async (req, res) => {
     let property_address = [street, city, state, zip].filter(Boolean).join(', ');
     if (!property_address) property_address = street || '';
 
-    const timeline = pick('Time Frame To Sell', 'timeline', 'time_frame', 'timeframe');
-    const repairs = pick('Repairs Maintenance Needed', 'repairs', 'condition', 'property_condition');
-    const sell_reason = pick('Reason For Selling', 'sell_reason', 'reason', 'motivation', 'why_selling');
+    const timeline = pick('Time_Frame_To_Sell', 'Time Frame To Sell', 'timeline', 'time_frame', 'timeframe');
+    const repairs = pick('Repairs_Maintenance_Needed', 'Repairs Maintenance Needed', 'repairs', 'condition', 'property_condition');
+    const sell_reason = pick('Reason_for_Selling', 'Reason_For_Selling', 'Reason For Selling', 'sell_reason', 'reason', 'motivation', 'why_selling');
     const wants_to_sell = pick('wants_to_sell', 'interested') || 'yes';
 
-    const askingPrice = pick('Asking Price', 'asking_price');
-    const ownedHowLong = pick('How Long Owned Property', 'how_long_owned');
-    const livingInHouse = pick('Anyone Living In House', 'anyone_living_in_house');
+    const askingPrice = pick('Asking_Price', 'Asking Price', 'asking_price');
+    const ownedHowLong = pick('How_Long_Owned_Property', 'How Long Owned Property', 'how_long_owned');
+    const livingInHouse = pick('Anyone_Living_In_House', 'Anyone Living In House', 'anyone_living_in_house');
     const comments = pick('Comments', 'comments');
-    const leadCost = pick('Lead Cost', 'lead_cost');
-    const leadId = pick('Lead ID', 'lead_id');
-    const dateCreated = pick('Date Created', 'date_created');
+    const leadCost = pick('Lead_Cost', 'Lead Cost', 'lead_cost');
+    const leadId = pick('Lead_ID', 'Lead ID', 'lead_id');
+    const dateCreated = pick('Date_Created', 'Date Created', 'date_created');
 
     const summaryLines = [
       askingPrice && `Asking Price: ${askingPrice}`,
