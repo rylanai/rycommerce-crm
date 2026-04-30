@@ -627,17 +627,24 @@ export default function CRMPage() {
       <div className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-white text-xl font-bold">crmEscrow</h1>
         <div className="flex items-center gap-2">
-          {["ALL", "META", "SMS", "PPC", "PROPERTYLEADS", "MOTIVATEDSELLERS"].map((src) => (
+          {[
+            { label: "ALL", value: "ALL" },
+            { label: "META", value: "META" },
+            { label: "SMS", value: "SMS" },
+            { label: "PPC", value: "PPC" },
+            { label: "PPL", value: "PROPERTYLEADS" },
+            { label: "MOTIVATEDSELLERS", value: "MOTIVATEDSELLERS" },
+          ].map(({ label, value }) => (
             <button
-              key={src}
-              onClick={() => setSourceFilter(src)}
+              key={value}
+              onClick={() => setSourceFilter(value)}
               className={`px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer transition-colors ${
-                sourceFilter === src
+                sourceFilter === value
                   ? "bg-blue-600 text-white"
                   : "bg-gray-700 text-gray-300 hover:bg-gray-600"
               }`}
             >
-              {src}
+              {label}
             </button>
           ))}
         </div>
