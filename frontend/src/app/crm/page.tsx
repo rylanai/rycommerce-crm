@@ -63,6 +63,7 @@ interface Lead {
   notes: string | null;
   dispo_price: string | number | null;
   offer_price: string | number | null;
+  value: string | number | null;
 }
 
 function parseMoney(v: string | number | null | undefined): number {
@@ -71,7 +72,9 @@ function parseMoney(v: string | number | null | undefined): number {
   return isFinite(n) ? n : 0;
 }
 
-function leadSpread(lead: Lead): number {
+function leadValue(lead: Lead): number {
+  const manual = parseMoney(lead.value);
+  if (manual > 0) return manual;
   const dispo = parseMoney(lead.dispo_price);
   const offer = parseMoney(lead.offer_price);
   if (dispo <= 0 || offer <= 0) return 0;
@@ -109,7 +112,7 @@ function LeadCard({
   onDelete: (id: number) => void;
   onFollowUp: (id: number) => void;
   onUpdateNotes: (id: number, notes: string) => void;
-  onUpdatePrice: (id: number, field: "dispo_price" | "offer_price", value: string) => void;
+  onUpdatePrice: (id: number, field: "dispo_price" | "offer_price" | "value", value: string) => void;
   firstColumnName: string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -234,9 +237,20 @@ function LeadCard({
             className="w-full bg-gray-900/40 text-gray-300 text-xs outline-none border border-gray-700 focus:border-gray-500 rounded-md px-2 py-1.5 placeholder-gray-600 resize-none overflow-hidden mb-1 leading-snug"
           />
           <div className="flex justify-between items-center">
-            <span className="text-green-400 text-xs font-semibold">
-              {leadSpread(lead) > 0 ? `Value: ${formatMoney(leadSpread(lead))}` : ""}
-            </span>
+            <div
+              className="flex items-center gap-1 text-green-400 text-xs font-semibold"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span>Value: $</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="0"
+                value={lead.value ?? ""}
+                onChange={(e) => onUpdatePrice(lead.id, "value", e.target.value)}
+                className="w-20 bg-transparent border-b border-gray-700 focus:border-green-500 outline-none text-green-400 placeholder-gray-600"
+              />
+            </div>
             <span className="text-gray-500 text-xs">
               {timeAgo(lead.created_at)}
             </span>
@@ -696,7 +710,7 @@ export default function CRMPage() {
   const priceTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const handleUpdatePrice = (
     id: number,
-    field: "dispo_price" | "offer_price",
+    field: "dispo_price" | "offer_price" | "value",
     value: string
   ) => {
     const stored = value === "" ? null : value;
@@ -913,7 +927,7 @@ export default function CRMPage() {
             {filteredLeads.length} total
           </span>
           {(() => {
-            const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadSpread(l), 0);
+            const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadValue(l), 0);
             return pipelineValue > 0 ? (
               <span className="text-green-400 text-sm font-semibold">
                 Value: {formatMoney(pipelineValue)}
@@ -976,7 +990,7 @@ export default function CRMPage() {
                             </h3>
                             <div className="flex items-center gap-2">
                               {(() => {
-                                const colValue = stageLeads.reduce((sum, l) => sum + leadSpread(l), 0);
+                                const colValue = stageLeads.reduce((sum, l) => sum + leadValue(l), 0);
                                 return colValue > 0 ? (
                                   <span className="text-green-400 text-xs font-semibold">
                                     {formatMoney(colValue)}
