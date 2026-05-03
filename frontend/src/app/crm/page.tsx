@@ -235,7 +235,7 @@ function LeadCard({
           />
           <div className="flex justify-between items-center">
             <span className="text-green-400 text-xs font-semibold">
-              {leadSpread(lead) > 0 ? `+${formatMoney(leadSpread(lead))}` : ""}
+              {leadSpread(lead) > 0 ? `Value: ${formatMoney(leadSpread(lead))}` : ""}
             </span>
             <span className="text-gray-500 text-xs">
               {timeAgo(lead.created_at)}
@@ -260,7 +260,7 @@ function LeadCard({
                   />
                 </label>
                 <label className="flex-1">
-                  <span className="text-gray-500 block mb-0.5">Offer Price</span>
+                  <span className="text-gray-500 block mb-0.5">Contract Price</span>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -916,7 +916,7 @@ export default function CRMPage() {
             const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadSpread(l), 0);
             return pipelineValue > 0 ? (
               <span className="text-green-400 text-sm font-semibold">
-                +{formatMoney(pipelineValue)}
+                Value: {formatMoney(pipelineValue)}
               </span>
             ) : null;
           })()}
@@ -979,7 +979,7 @@ export default function CRMPage() {
                                 const colValue = stageLeads.reduce((sum, l) => sum + leadSpread(l), 0);
                                 return colValue > 0 ? (
                                   <span className="text-green-400 text-xs font-semibold">
-                                    +{formatMoney(colValue)}
+                                    {formatMoney(colValue)}
                                   </span>
                                 ) : null;
                               })()}
