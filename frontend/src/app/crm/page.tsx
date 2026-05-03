@@ -61,6 +61,26 @@ interface Lead {
   created_at: string;
   last_followed_up: string | null;
   notes: string | null;
+  dispo_price: string | number | null;
+  offer_price: string | number | null;
+}
+
+function parseMoney(v: string | number | null | undefined): number {
+  if (v === null || v === undefined || v === "") return 0;
+  const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.\-]/g, ""));
+  return isFinite(n) ? n : 0;
+}
+
+function leadSpread(lead: Lead): number {
+  const dispo = parseMoney(lead.dispo_price);
+  const offer = parseMoney(lead.offer_price);
+  if (dispo <= 0 || offer <= 0) return 0;
+  return dispo - offer;
+}
+
+function formatMoney(n: number): string {
+  const sign = n < 0 ? "-" : "";
+  return `${sign}$${Math.abs(Math.round(n)).toLocaleString()}`;
 }
 
 function timeAgo(dateStr: string) {
@@ -81,6 +101,7 @@ function LeadCard({
   onDelete,
   onFollowUp,
   onUpdateNotes,
+  onUpdatePrice,
   firstColumnName,
 }: {
   lead: Lead;
@@ -88,6 +109,7 @@ function LeadCard({
   onDelete: (id: number) => void;
   onFollowUp: (id: number) => void;
   onUpdateNotes: (id: number, notes: string) => void;
+  onUpdatePrice: (id: number, field: "dispo_price" | "offer_price", value: string) => void;
   firstColumnName: string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -211,7 +233,10 @@ function LeadCard({
             }}
             className="w-full bg-gray-900/40 text-gray-300 text-xs outline-none border border-gray-700 focus:border-gray-500 rounded-md px-2 py-1.5 placeholder-gray-600 resize-none overflow-hidden mb-1 leading-snug"
           />
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <span className="text-green-400 text-xs font-semibold">
+              {leadSpread(lead) > 0 ? `+${formatMoney(leadSpread(lead))}` : ""}
+            </span>
             <span className="text-gray-500 text-xs">
               {timeAgo(lead.created_at)}
             </span>
@@ -219,6 +244,33 @@ function LeadCard({
 
           {expanded && (
             <div className="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-300 space-y-1">
+              <div
+                className="flex gap-2 mb-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <label className="flex-1">
+                  <span className="text-gray-500 block mb-0.5">Dispo Price</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={lead.dispo_price ?? ""}
+                    onChange={(e) => onUpdatePrice(lead.id, "dispo_price", e.target.value)}
+                    className="w-full bg-gray-900/40 border border-gray-700 focus:border-gray-500 rounded-md px-2 py-1 text-white outline-none"
+                  />
+                </label>
+                <label className="flex-1">
+                  <span className="text-gray-500 block mb-0.5">Offer Price</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={lead.offer_price ?? ""}
+                    onChange={(e) => onUpdatePrice(lead.id, "offer_price", e.target.value)}
+                    className="w-full bg-gray-900/40 border border-gray-700 focus:border-gray-500 rounded-md px-2 py-1 text-white outline-none"
+                  />
+                </label>
+              </div>
               <p>
                 <span className="text-gray-500">Email:</span> {lead.email}
               </p>
@@ -441,11 +493,19 @@ export default function CRMPage() {
     sourceFilter === "ALL" ? globalStages : (tabStages[sourceFilter] || globalStages);
   const firstColumnName = allStages[0] || "New Lead";
 
+  // Tracks fields the user is actively editing per lead; preserve these across
+  // polls so the 10s refresh doesn't wipe in-progress typing.
+  const pendingEditsRef = useRef<Record<number, Partial<Lead>>>({});
+
   const fetchLeads = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/leads`);
-      const data = await res.json();
-      setLeads(data);
+      const data: Lead[] = await res.json();
+      const pending = pendingEditsRef.current;
+      const merged = data.map((l) =>
+        pending[l.id] ? { ...l, ...pending[l.id] } : l
+      );
+      setLeads(merged);
     } catch (err) {
       console.error("Error fetching leads:", err);
     }
@@ -608,7 +668,10 @@ export default function CRMPage() {
     setLeads((prev) =>
       prev.map((l) => (l.id === id ? { ...l, notes } : l))
     );
-    // Debounce the API call
+    pendingEditsRef.current[id] = {
+      ...(pendingEditsRef.current[id] || {}),
+      notes,
+    };
     if (notesTimerRef.current[id]) clearTimeout(notesTimerRef.current[id]);
     notesTimerRef.current[id] = setTimeout(async () => {
       try {
@@ -619,6 +682,49 @@ export default function CRMPage() {
         });
       } catch (err) {
         console.error("Error updating notes:", err);
+      } finally {
+        if (pendingEditsRef.current[id]) {
+          delete pendingEditsRef.current[id].notes;
+          if (Object.keys(pendingEditsRef.current[id]).length === 0) {
+            delete pendingEditsRef.current[id];
+          }
+        }
+      }
+    }, 500);
+  };
+
+  const priceTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const handleUpdatePrice = (
+    id: number,
+    field: "dispo_price" | "offer_price",
+    value: string
+  ) => {
+    const stored = value === "" ? null : value;
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, [field]: stored } : l))
+    );
+    pendingEditsRef.current[id] = {
+      ...(pendingEditsRef.current[id] || {}),
+      [field]: stored,
+    };
+    const key = `${id}:${field}`;
+    if (priceTimerRef.current[key]) clearTimeout(priceTimerRef.current[key]);
+    priceTimerRef.current[key] = setTimeout(async () => {
+      try {
+        await fetch(`${API_URL}/api/leads/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [field]: stored }),
+        });
+      } catch (err) {
+        console.error("Error updating price:", err);
+      } finally {
+        if (pendingEditsRef.current[id]) {
+          delete pendingEditsRef.current[id][field];
+          if (Object.keys(pendingEditsRef.current[id]).length === 0) {
+            delete pendingEditsRef.current[id];
+          }
+        }
       }
     }, 500);
   };
@@ -806,6 +912,14 @@ export default function CRMPage() {
           <span className="text-gray-400 text-sm">
             {filteredLeads.length} total
           </span>
+          {(() => {
+            const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadSpread(l), 0);
+            return pipelineValue > 0 ? (
+              <span className="text-green-400 text-sm font-semibold">
+                +{formatMoney(pipelineValue)}
+              </span>
+            ) : null;
+          })()}
           <span className="text-gray-500 text-sm">|</span>
           <div className="flex items-center gap-2">
             <input
@@ -861,6 +975,14 @@ export default function CRMPage() {
                               {stage}
                             </h3>
                             <div className="flex items-center gap-2">
+                              {(() => {
+                                const colValue = stageLeads.reduce((sum, l) => sum + leadSpread(l), 0);
+                                return colValue > 0 ? (
+                                  <span className="text-green-400 text-xs font-semibold">
+                                    +{formatMoney(colValue)}
+                                  </span>
+                                ) : null;
+                              })()}
                               <span className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">
                                 {stageLeads.length}
                               </span>
@@ -910,6 +1032,7 @@ export default function CRMPage() {
                                     onDelete={handleDelete}
                                     onFollowUp={handleFollowUp}
                                     onUpdateNotes={handleUpdateNotes}
+                                    onUpdatePrice={handleUpdatePrice}
                                     firstColumnName={firstColumnName}
                                   />
                                 ))}
