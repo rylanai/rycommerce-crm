@@ -81,12 +81,13 @@ const STAGE_WEIGHTS: Array<[string, number]> = [
 ];
 
 function rawLeadValue(lead: Lead): number {
-  const manual = parseMoney(lead.value);
-  if (manual > 0) return manual;
+  // Prefer the live spread when both prices are filled in — that way editing
+  // dispo/contract immediately moves the value. Fall back to the manual value
+  // if the user only entered the bottom-of-card amount directly.
   const dispo = parseMoney(lead.dispo_price);
   const offer = parseMoney(lead.offer_price);
-  if (dispo <= 0 || offer <= 0) return 0;
-  return dispo - offer;
+  if (dispo > 0 && offer > 0) return dispo - offer;
+  return parseMoney(lead.value);
 }
 
 function stageWeight(stage: string): number {
