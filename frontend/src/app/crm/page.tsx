@@ -185,7 +185,7 @@ function LeadCard({
               {lead.first_name} {lead.last_name}
               {lead.deal_type === "W" && (
                 <span
-                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-bold"
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-white text-black text-[10px] font-bold"
                   title="Wholesale"
                 >
                   W
@@ -193,7 +193,7 @@ function LeadCard({
               )}
               {lead.deal_type === "N" && (
                 <span
-                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-purple-500 text-white text-[10px] font-bold"
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-black text-white border border-gray-600 text-[10px] font-bold"
                   title="Novation"
                 >
                   N
@@ -335,7 +335,10 @@ function LeadCard({
                 <span className="text-gray-500">Deal Type:</span>
                 {(["W", "N"] as const).map((t) => {
                   const active = lead.deal_type === t;
-                  const activeColor = t === "W" ? "bg-blue-500" : "bg-purple-500";
+                  const activeClass =
+                    t === "W"
+                      ? "bg-white text-black"
+                      : "bg-black text-white border border-gray-600";
                   return (
                     <button
                       key={t}
@@ -343,7 +346,7 @@ function LeadCard({
                       onClick={() => onUpdateDealType(lead.id, active ? null : t)}
                       className={`w-6 h-6 rounded-full text-[11px] font-bold cursor-pointer ${
                         active
-                          ? `${activeColor} text-white`
+                          ? activeClass
                           : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                       }`}
                       title={t === "W" ? "Wholesale" : "Novation"}
@@ -1054,8 +1057,8 @@ export default function CRMPage() {
             const nCount = filteredLeads.filter((l) => l.deal_type === "N").length;
             return (
               <span className="text-sm flex items-center gap-2">
-                <span className="text-blue-400 font-semibold">W:{wCount}</span>
-                <span className="text-purple-400 font-semibold">N:{nCount}</span>
+                <span className="text-white font-semibold">W:{wCount}</span>
+                <span className="text-gray-300 font-semibold">N:{nCount}</span>
               </span>
             );
           })()}
