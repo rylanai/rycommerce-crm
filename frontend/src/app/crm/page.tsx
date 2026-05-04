@@ -1057,8 +1057,8 @@ export default function CRMPage() {
             const nCount = filteredLeads.filter((l) => l.deal_type === "N").length;
             return (
               <span className="text-sm flex items-center gap-2">
-                <span className="text-white font-semibold">W:{wCount}</span>
-                <span className="text-gray-300 font-semibold">N:{nCount}</span>
+                <span className="bg-white text-black font-semibold px-2 py-0.5 rounded">W:{wCount}</span>
+                <span className="bg-black text-white font-semibold px-2 py-0.5 rounded border border-gray-600">N:{nCount}</span>
               </span>
             );
           })()}
