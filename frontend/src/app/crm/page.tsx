@@ -193,7 +193,7 @@ function LeadCard({
               )}
               {lead.deal_type === "N" && (
                 <span
-                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-black text-white border border-gray-600 text-[10px] font-bold"
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-black text-white text-[10px] font-bold"
                   title="Novation"
                 >
                   N
