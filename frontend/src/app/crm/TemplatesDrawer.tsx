@@ -20,19 +20,44 @@ const DEFAULTS: Template[] = [
   { id: "t9", title: "Cash offer", body: "Sounds good, my number actually came back right there at $94,000. That’s cash, as-is (you don’t need to make any repairs), and we pay all of the closing costs. Which means the title company will send you a check/wire transfer for the full $94,000 minus whatever is owed on the property" },
   { id: "t10", title: "Novation offer — pitch", body: "Hey so I ran all of the scenarios, asked all of my buddies who also invest in Mansfield, and the highest maximum offer kept coming back too low at $132,000. I do have a process though that’s recently become very popular with all of the sellers I work with in Mansfield. I assume it’s because there’s still no work on your end and you end up with a lot more money. I ran all of the numbers for this too and it actually came back right at $178,000 net to you. Do you want to hear how the process works? It’s just as simple and there’s still no work or fees on your end 👍" },
   { id: "t11", title: "Novation offer — explanation", body: "So it’s called a novation I still handle everything, me and my local team just put it up on the mls. You get a lot more money and the only difference is it might just take 10-15 days longer for you to get the cash. You still don’t need to make any repairs, we cover all commissions, we pay all closing costs, and we will even pay for a moving company to help you move if needed. Which means the title company will send you a check/wire transfer for the full $178,000 minus whatever is owed on the property." },
+  { id: "t12", title: "No response to majors", body: "No worries if so, just need to know what major repairs are needed" },
+  { id: "t13", title: "No response to asking price", body: "Hi do you know how much you need to get for the property?" },
+  { id: "t14", title: "No response to message 1-2", body: "Hi are you still looking to sell your property? 9631 S Cicero Ave; Oak Lawn; IL; 60453" },
+  { id: "t15", title: "No response to closing time", body: "Hi did you know when you are looking to close and finalize the sale?\nWe can work on your timeline" },
+  { id: "t16", title: "No response to photos", body: "Hi do you happen to have photos of the property? No worries if not" },
+  { id: "t17", title: "No response to access", body: "Hi would our team be able to access the property throughout closing? We would confirm the date and time with you beforehand" },
+  { id: "t18", title: "No response after sent contract", body: "Hi just wanted to follow up. Are you still looking to sell? Is there anything I can do to help?\n\nOr\n\nIf you want to sell feel free to reach out, we are good to go on our end 👍" },
 ];
 
 const STORAGE_KEY = "crm_templates_v1";
+const SEED_VERSION_KEY = "crm_templates_seed_version";
+const SEED_VERSION = "2";
 
 function loadTemplates(): Template[] {
   if (typeof window === "undefined") return DEFAULTS;
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return DEFAULTS;
+  if (!raw) {
+    localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
+    return DEFAULTS;
+  }
+  let saved: Template[] = [];
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) saved = parsed;
   } catch {}
-  return DEFAULTS;
+  // One-time merge: add any DEFAULTS the user is missing (by id) so new
+  // built-in templates show up without overwriting edits the user has made.
+  const seedVersion = localStorage.getItem(SEED_VERSION_KEY);
+  if (seedVersion !== SEED_VERSION) {
+    const haveIds = new Set(saved.map((t) => t.id));
+    const additions = DEFAULTS.filter((d) => !haveIds.has(d.id));
+    if (additions.length > 0) {
+      saved = [...saved, ...additions];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    }
+    localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
+  }
+  return saved;
 }
 
 function saveTemplates(list: Template[]) {
