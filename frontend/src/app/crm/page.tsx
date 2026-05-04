@@ -72,12 +72,13 @@ function parseMoney(v: string | number | null | undefined): number {
   return isFinite(n) ? n : 0;
 }
 
-const STAGE_WEIGHTS: Record<string, number> = {
-  "Contract Sent": 0.25,
-  "Contract Signed": 0.5,
-  "Assigned": 0.5,
-  "Closed": 1,
-};
+// Ordered: longer names first so "Contract Signed" matches before "Contract".
+const STAGE_WEIGHTS: Array<[string, number]> = [
+  ["contract signed", 0.5],
+  ["contract sent", 0.25],
+  ["assigned", 0.5],
+  ["closed", 1],
+];
 
 function rawLeadValue(lead: Lead): number {
   const manual = parseMoney(lead.value);
@@ -89,7 +90,11 @@ function rawLeadValue(lead: Lead): number {
 }
 
 function stageWeight(stage: string): number {
-  return STAGE_WEIGHTS[stage] ?? 0;
+  const s = (stage || "").toLowerCase();
+  for (const [needle, weight] of STAGE_WEIGHTS) {
+    if (s.includes(needle)) return weight;
+  }
+  return 0;
 }
 
 function leadValue(lead: Lead): number {
@@ -97,7 +102,7 @@ function leadValue(lead: Lead): number {
 }
 
 function showsValue(stage: string): boolean {
-  return stage in STAGE_WEIGHTS;
+  return stageWeight(stage) > 0;
 }
 
 function formatMoney(n: number): string {
