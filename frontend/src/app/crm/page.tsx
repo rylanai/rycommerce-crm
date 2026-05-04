@@ -72,13 +72,32 @@ function parseMoney(v: string | number | null | undefined): number {
   return isFinite(n) ? n : 0;
 }
 
-function leadValue(lead: Lead): number {
+const STAGE_WEIGHTS: Record<string, number> = {
+  "Contract Sent": 0.25,
+  "Contract Signed": 0.5,
+  "Assigned": 0.5,
+  "Closed": 1,
+};
+
+function rawLeadValue(lead: Lead): number {
   const manual = parseMoney(lead.value);
   if (manual > 0) return manual;
   const dispo = parseMoney(lead.dispo_price);
   const offer = parseMoney(lead.offer_price);
   if (dispo <= 0 || offer <= 0) return 0;
   return dispo - offer;
+}
+
+function stageWeight(stage: string): number {
+  return STAGE_WEIGHTS[stage] ?? 0;
+}
+
+function leadValue(lead: Lead): number {
+  return rawLeadValue(lead) * stageWeight(lead.stage);
+}
+
+function showsValue(stage: string): boolean {
+  return stage in STAGE_WEIGHTS;
 }
 
 function formatMoney(n: number): string {
@@ -118,6 +137,7 @@ function LeadCard({
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
+  const [editingValue, setEditingValue] = useState(false);
 
   const isDead = lead.stage.toLowerCase().includes("dead");
   const needsFollowUp = !lead.last_followed_up ||
@@ -237,20 +257,44 @@ function LeadCard({
             className="w-full bg-gray-900/40 text-gray-300 text-xs outline-none border border-gray-700 focus:border-gray-500 rounded-md px-2 py-1.5 placeholder-gray-600 resize-none overflow-hidden mb-1 leading-snug"
           />
           <div className="flex justify-between items-center">
-            <div
-              className="flex items-center gap-1 text-green-400 text-xs font-semibold"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span>Value: $</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="0"
-                value={lead.value ?? ""}
-                onChange={(e) => onUpdatePrice(lead.id, "value", e.target.value)}
-                className="w-20 bg-transparent border-b border-gray-700 focus:border-green-500 outline-none text-green-400 placeholder-gray-600"
-              />
-            </div>
+            {showsValue(lead.stage) ? (
+              <div
+                className="flex items-center gap-1 text-green-400 text-xs font-semibold"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {editingValue ? (
+                  <>
+                    <span>$</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="0"
+                      autoFocus
+                      value={lead.value ?? ""}
+                      onChange={(e) => onUpdatePrice(lead.id, "value", e.target.value)}
+                      onBlur={() => setEditingValue(false)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "Escape") {
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      className="w-20 bg-transparent border-b border-gray-700 focus:border-green-500 outline-none text-green-400 placeholder-gray-600"
+                    />
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditingValue(true)}
+                    className="cursor-text hover:text-green-300"
+                    title="Click to edit deal value"
+                  >
+                    Value: {leadValue(lead) > 0 ? formatMoney(leadValue(lead)) : "$0"}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <span />
+            )}
             <span className="text-gray-500 text-xs">
               {timeAgo(lead.created_at)}
             </span>
