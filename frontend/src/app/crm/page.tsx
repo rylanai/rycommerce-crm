@@ -274,6 +274,7 @@ function LeadCard({
                     <input
                       type="number"
                       inputMode="decimal"
+                      step="1000"
                       placeholder="0"
                       autoFocus
                       value={lead.value ?? ""}
@@ -317,6 +318,7 @@ function LeadCard({
                   <input
                     type="number"
                     inputMode="decimal"
+                    step="1000"
                     placeholder="0"
                     value={lead.dispo_price ?? ""}
                     onChange={(e) => onUpdatePrice(lead.id, "dispo_price", e.target.value)}
@@ -328,6 +330,7 @@ function LeadCard({
                   <input
                     type="number"
                     inputMode="decimal"
+                    step="1000"
                     placeholder="0"
                     value={lead.offer_price ?? ""}
                     onChange={(e) => onUpdatePrice(lead.id, "offer_price", e.target.value)}
