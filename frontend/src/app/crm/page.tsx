@@ -1056,12 +1056,14 @@ export default function CRMPage() {
             {filteredLeads.length} total
           </span>
           {(() => {
-            const refundedCount = filteredLeads.filter((l) =>
-              (l.stage || "").toLowerCase().includes("refund")
-            ).length;
+            // "Refunded" subtracts from adjusted count; "Refund Requested" only greys out.
+            const refundedCount = filteredLeads.filter((l) => {
+              const s = (l.stage || "").toLowerCase();
+              return s.includes("refund") && !s.includes("request");
+            }).length;
             const adjusted = filteredLeads.length - refundedCount;
             return (
-              <span className="text-gray-400 text-sm" title="Total minus refunded">
+              <span className="text-gray-400 text-sm" title="Total minus refunded (excludes refund requested)">
                 {adjusted} adjusted
               </span>
             );
