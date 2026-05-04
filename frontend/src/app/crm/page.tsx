@@ -288,7 +288,7 @@ function LeadCard({
                     className="cursor-text hover:text-green-300"
                     title="Click to edit deal value"
                   >
-                    Value: {leadValue(lead) > 0 ? formatMoney(leadValue(lead)) : "$0"}
+                    +{leadValue(lead) > 0 ? formatMoney(leadValue(lead)) : "$0"}
                   </button>
                 )}
               </div>
@@ -974,7 +974,7 @@ export default function CRMPage() {
             const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadValue(l), 0);
             return pipelineValue > 0 ? (
               <span className="text-green-400 text-sm font-semibold">
-                Value: {formatMoney(pipelineValue)}
+                Total Value: {formatMoney(pipelineValue)}
               </span>
             ) : null;
           })()}
@@ -1037,7 +1037,7 @@ export default function CRMPage() {
                                 const colValue = stageLeads.reduce((sum, l) => sum + leadValue(l), 0);
                                 return colValue > 0 ? (
                                   <span className="text-green-400 text-xs font-semibold">
-                                    {formatMoney(colValue)}
+                                    Total: {formatMoney(colValue)}
                                   </span>
                                 ) : null;
                               })()}
