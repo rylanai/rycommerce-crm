@@ -64,6 +64,7 @@ interface Lead {
   dispo_price: string | number | null;
   offer_price: string | number | null;
   value: string | number | null;
+  deal_type: "W" | "N" | null;
 }
 
 function parseMoney(v: string | number | null | undefined): number {
@@ -130,6 +131,7 @@ function LeadCard({
   onFollowUp,
   onUpdateNotes,
   onUpdatePrice,
+  onUpdateDealType,
   firstColumnName,
 }: {
   lead: Lead;
@@ -138,6 +140,7 @@ function LeadCard({
   onFollowUp: (id: number) => void;
   onUpdateNotes: (id: number, notes: string) => void;
   onUpdatePrice: (id: number, field: "dispo_price" | "offer_price" | "value", value: string) => void;
+  onUpdateDealType: (id: number, dealType: "W" | "N" | null) => void;
   firstColumnName: string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -178,8 +181,24 @@ function LeadCard({
             />
           )}
           <div className="flex justify-between items-start mb-1">
-            <span className="font-semibold text-white text-sm">
+            <span className="font-semibold text-white text-sm flex items-center gap-1.5">
               {lead.first_name} {lead.last_name}
+              {lead.deal_type === "W" && (
+                <span
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-bold"
+                  title="Wholesale"
+                >
+                  W
+                </span>
+              )}
+              {lead.deal_type === "N" && (
+                <span
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-purple-500 text-white text-[10px] font-bold"
+                  title="Novation"
+                >
+                  N
+                </span>
+              )}
             </span>
             <div className="flex items-center gap-2">
               {lead.stage === firstColumnName && (
@@ -309,6 +328,31 @@ function LeadCard({
 
           {expanded && (
             <div className="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-300 space-y-1">
+              <div
+                className="flex items-center gap-2 mb-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-gray-500">Deal Type:</span>
+                {(["W", "N"] as const).map((t) => {
+                  const active = lead.deal_type === t;
+                  const activeColor = t === "W" ? "bg-blue-500" : "bg-purple-500";
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => onUpdateDealType(lead.id, active ? null : t)}
+                      className={`w-6 h-6 rounded-full text-[11px] font-bold cursor-pointer ${
+                        active
+                          ? `${activeColor} text-white`
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      }`}
+                      title={t === "W" ? "Wholesale" : "Novation"}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
               <div
                 className="flex gap-2 mb-2"
                 onClick={(e) => e.stopPropagation()}
@@ -760,6 +804,32 @@ export default function CRMPage() {
     }, 500);
   };
 
+  const handleUpdateDealType = async (id: number, dealType: "W" | "N" | null) => {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, deal_type: dealType } : l))
+    );
+    pendingEditsRef.current[id] = {
+      ...(pendingEditsRef.current[id] || {}),
+      deal_type: dealType,
+    };
+    try {
+      await fetch(`${API_URL}/api/leads/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deal_type: dealType }),
+      });
+    } catch (err) {
+      console.error("Error updating deal_type:", err);
+    } finally {
+      if (pendingEditsRef.current[id]) {
+        delete pendingEditsRef.current[id].deal_type;
+        if (Object.keys(pendingEditsRef.current[id]).length === 0) {
+          delete pendingEditsRef.current[id];
+        }
+      }
+    }
+  };
+
   const priceTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const handleUpdatePrice = (
     id: number,
@@ -980,6 +1050,16 @@ export default function CRMPage() {
             {filteredLeads.length} total
           </span>
           {(() => {
+            const wCount = filteredLeads.filter((l) => l.deal_type === "W").length;
+            const nCount = filteredLeads.filter((l) => l.deal_type === "N").length;
+            return (
+              <span className="text-sm flex items-center gap-2">
+                <span className="text-blue-400 font-semibold">W:{wCount}</span>
+                <span className="text-purple-400 font-semibold">N:{nCount}</span>
+              </span>
+            );
+          })()}
+          {(() => {
             const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadValue(l), 0);
             return pipelineValue > 0 ? (
               <span className="text-green-400 text-sm font-semibold">
@@ -1100,6 +1180,7 @@ export default function CRMPage() {
                                     onFollowUp={handleFollowUp}
                                     onUpdateNotes={handleUpdateNotes}
                                     onUpdatePrice={handleUpdatePrice}
+                                    onUpdateDealType={handleUpdateDealType}
                                     firstColumnName={firstColumnName}
                                   />
                                 ))}
