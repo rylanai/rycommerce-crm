@@ -148,7 +148,10 @@ function LeadCard({
   const [addressCopied, setAddressCopied] = useState(false);
   const [editingValue, setEditingValue] = useState(false);
 
-  const isDead = lead.stage.toLowerCase().includes("dead");
+  const stageLower = lead.stage.toLowerCase();
+  const isDead = stageLower.includes("dead");
+  const isRefunded = stageLower.includes("refund");
+  const isDimmed = isDead || isRefunded;
   const needsFollowUp = !lead.last_followed_up ||
     (new Date().getTime() - new Date(lead.last_followed_up).getTime()) > 15 * 60 * 60 * 1000;
 
@@ -168,7 +171,7 @@ function LeadCard({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={() => setExpanded(!expanded)}
-          className={`relative rounded-lg p-3 mb-2 cursor-pointer border ${isDead ? "bg-gray-900 border-gray-800 opacity-50" : "bg-gray-800 border-gray-700 hover:bg-gray-750"}`}
+          className={`relative rounded-lg p-3 mb-2 cursor-pointer border ${isDimmed ? "bg-gray-900 border-gray-800 opacity-50" : "bg-gray-800 border-gray-700 hover:bg-gray-750"}`}
         >
           {(lead.source === "propertyleads" || lead.source === "motivatedsellers") && (
             <div
@@ -219,7 +222,7 @@ function LeadCard({
                   )}
                 </button>
               )}
-              {!isDead && (
+              {!isDimmed && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1052,6 +1055,17 @@ export default function CRMPage() {
           <span className="text-gray-400 text-sm">
             {filteredLeads.length} total
           </span>
+          {(() => {
+            const refundedCount = filteredLeads.filter((l) =>
+              (l.stage || "").toLowerCase().includes("refund")
+            ).length;
+            const adjusted = filteredLeads.length - refundedCount;
+            return (
+              <span className="text-gray-400 text-sm" title="Total minus refunded">
+                {adjusted} adjusted
+              </span>
+            );
+          })()}
           {(() => {
             const wCount = filteredLeads.filter((l) => l.deal_type === "W").length;
             const nCount = filteredLeads.filter((l) => l.deal_type === "N").length;
