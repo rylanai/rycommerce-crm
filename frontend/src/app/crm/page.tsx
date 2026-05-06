@@ -107,6 +107,62 @@ function showsValue(stage: string): boolean {
   return stageWeight(stage) > 0;
 }
 
+type StageAccent = "amber" | "sky" | "emerald" | "rose";
+
+function stageAccent(stage: string): StageAccent | null {
+  const s = (stage || "").toLowerCase();
+  if (s.includes("dead") || s.includes("refund")) return "rose";
+  if (s.includes("assigned") || s.includes("closed")) return "emerald";
+  if (s.includes("contract")) return "sky";
+  if (
+    s.includes("new lead") ||
+    s.includes("no answer") ||
+    s.includes("asking") ||
+    s.includes("gathering") ||
+    s.includes("offer")
+  ) {
+    return "amber";
+  }
+  return null;
+}
+
+const STAGE_ACCENT_STYLES: Record<StageAccent, {
+  header: string;
+  count: string;
+  rule: string;
+  dot: string;
+  shadow: string;
+}> = {
+  amber: {
+    header: "bg-gradient-to-b from-amber-400/15 via-amber-400/5 to-transparent",
+    count: "bg-amber-400/15 text-amber-200 ring-1 ring-amber-400/30",
+    rule: "bg-gradient-to-r from-transparent via-amber-400/40 to-transparent",
+    dot: "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.7)]",
+    shadow: "shadow-[0_0_40px_-15px_rgba(251,191,36,0.35)]",
+  },
+  sky: {
+    header: "bg-gradient-to-b from-sky-400/15 via-sky-400/5 to-transparent",
+    count: "bg-sky-400/15 text-sky-200 ring-1 ring-sky-400/30",
+    rule: "bg-gradient-to-r from-transparent via-sky-400/40 to-transparent",
+    dot: "bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.7)]",
+    shadow: "shadow-[0_0_40px_-15px_rgba(56,189,248,0.35)]",
+  },
+  emerald: {
+    header: "bg-gradient-to-b from-emerald-400/15 via-emerald-400/5 to-transparent",
+    count: "bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-400/30",
+    rule: "bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent",
+    dot: "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]",
+    shadow: "shadow-[0_0_40px_-15px_rgba(52,211,153,0.35)]",
+  },
+  rose: {
+    header: "bg-gradient-to-b from-rose-500/15 via-rose-500/5 to-transparent",
+    count: "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30",
+    rule: "bg-gradient-to-r from-transparent via-rose-500/40 to-transparent",
+    dot: "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.7)]",
+    shadow: "shadow-[0_0_40px_-15px_rgba(244,63,94,0.35)]",
+  },
+};
+
 function formatMoney(n: number): string {
   const sign = n < 0 ? "-" : "";
   return `${sign}$${Math.abs(Math.round(n)).toLocaleString()}`;
@@ -171,11 +227,11 @@ function LeadCard({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={() => setExpanded(!expanded)}
-          className={`relative rounded-xl p-3 mb-2 cursor-pointer border transition-all ${
+          className={`relative rounded-xl p-3 mb-2 cursor-pointer border [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
             isDimmed
               ? "bg-slate-950/60 border-white/5 opacity-50"
               : "bg-gradient-to-b from-slate-800/70 to-slate-900/70 border-white/10 hover:border-white/20 hover:from-slate-800 hover:to-slate-900 shadow-sm hover:shadow-lg hover:shadow-black/30"
-          } ${snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40 rotate-[0.5deg]" : ""}`}
+          } ${snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""}`}
         >
           {(lead.source === "propertyleads" || lead.source === "motivatedsellers") && (
             <div
@@ -1279,40 +1335,41 @@ export default function CRMPage() {
                 {allStages.map((stage, colIndex) => {
                   const stageLeads = getLeadsByStage(stage);
                   const colValue = stageLeads.reduce((sum, l) => sum + leadValue(l), 0);
-                  const stageL = stage.toLowerCase();
-                  const isClosedCol = stageL.includes("closed");
-                  const isDeadCol = stageL.includes("dead") || stageL.includes("refund");
+                  const accent = stageAccent(stage);
+                  const accentStyle = accent ? STAGE_ACCENT_STYLES[accent] : null;
                   return (
                     <Draggable key={stage} draggableId={`col-${stage}`} index={colIndex}>
                       {(colProvided, colSnapshot) => (
                         <div
                           ref={colProvided.innerRef}
                           {...colProvided.draggableProps}
-                          className={`group/col w-72 rounded-2xl flex flex-col max-h-[calc(100vh-140px)] border backdrop-blur-sm transition-all ${
+                          className={`group/col w-72 rounded-2xl flex flex-col max-h-[calc(100vh-140px)] border backdrop-blur-sm [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
                             colSnapshot.isDragging
                               ? "bg-slate-900/90 border-white/20 shadow-2xl shadow-black/50"
-                              : "bg-slate-900/50 border-white/5 shadow-lg shadow-black/20"
+                              : `bg-slate-900/50 border-white/5 shadow-lg shadow-black/20${accent ? " " + STAGE_ACCENT_STYLES[accent].shadow : ""}`
                           }`}
                         >
                           <div
                             {...colProvided.dragHandleProps}
-                            className={`px-4 py-3 border-b border-white/5 flex justify-between items-center cursor-grab rounded-t-2xl ${
-                              isClosedCol
-                                ? "bg-gradient-to-b from-emerald-500/10 to-transparent"
-                                : isDeadCol
-                                ? "bg-gradient-to-b from-rose-500/5 to-transparent"
-                                : "bg-gradient-to-b from-white/[0.04] to-transparent"
+                            className={`relative px-4 py-3 border-b border-white/5 flex justify-between items-center cursor-grab rounded-t-2xl ${
+                              accentStyle ? accentStyle.header : "bg-gradient-to-b from-white/[0.04] to-transparent"
                             }`}
                           >
+                            {accentStyle && (
+                              <span className={`pointer-events-none absolute left-0 right-0 -bottom-px h-px ${accentStyle.rule}`} />
+                            )}
                             <h3
-                              className="text-white text-sm font-semibold tracking-tight cursor-pointer truncate"
+                              className="text-white text-sm font-semibold tracking-tight cursor-pointer truncate flex items-center gap-2"
                               onDoubleClick={(e) => {
                                 e.stopPropagation();
                                 renameColumn(stage);
                               }}
                               title="Double-click to rename"
                             >
-                              {stage}
+                              {accentStyle && (
+                                <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${accentStyle.dot}`} />
+                              )}
+                              <span className="truncate">{stage}</span>
                             </h3>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               {colValue > 0 && (
@@ -1320,7 +1377,9 @@ export default function CRMPage() {
                                   {formatMoney(colValue)}
                                 </span>
                               )}
-                              <span className="bg-white/10 text-gray-200 text-[11px] font-semibold px-2 py-0.5 rounded-full min-w-[22px] text-center tabular-nums">
+                              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full min-w-[22px] text-center tabular-nums ${
+                                accentStyle ? accentStyle.count : "bg-white/10 text-gray-200"
+                              }`}>
                                 {stageLeads.length}
                               </span>
                               <button
