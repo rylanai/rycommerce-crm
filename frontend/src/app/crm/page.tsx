@@ -1344,19 +1344,10 @@ export default function CRMPage() {
                 )}
               </svg>
             </button>
-            <h1 className="flex items-center gap-2 select-none" title="crmEscrow">
-              <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 shadow-lg shadow-indigo-900/50 ring-1 ring-white/15">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 7h12" />
-                  <path d="M5 12h8" />
-                  <path d="M5 17h12" />
-                  <path d="M19 9v6" />
-                </svg>
-                <span className="absolute inset-0 rounded-lg ring-1 ring-white/20 pointer-events-none" />
-              </span>
+            <h1 className="select-none" title="crmEscrow">
               <span className="text-[17px] leading-none font-extrabold tracking-tight">
-                <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">crm</span>
-                <span className="text-white">Escrow</span>
+                <span className="text-white">crm</span>
+                <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">Escrow</span>
               </span>
             </h1>
             <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-gray-300 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
