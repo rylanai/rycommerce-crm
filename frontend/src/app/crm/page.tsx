@@ -599,6 +599,38 @@ export default function CRMPage() {
     });
   }, [columnOrder, globalStages]);
 
+  // One-time migration: make sure any global stage with "refund" in its name
+  // is present in every per-tab list so PPL/etc. get the refund columns back
+  // even if they were previously hidden from those tabs.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (columnOrder === null) return;
+    if (!globalStages || globalStages.length === 0) return;
+    if (localStorage.getItem("crm_refund_migration_v1") === "done") return;
+    const refundStages = globalStages.filter((s) =>
+      s.toLowerCase().includes("refund")
+    );
+    if (refundStages.length === 0) {
+      localStorage.setItem("crm_refund_migration_v1", "done");
+      return;
+    }
+    setTabStages((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const tab of ["META", "SMS", "PPC", "PPL"]) {
+        const list = next[tab] || [...globalStages];
+        const missing = refundStages.filter((s) => !list.includes(s));
+        if (missing.length > 0) {
+          next[tab] = [...list, ...missing];
+          localStorage.setItem(`crm_columns_${tab}`, JSON.stringify(next[tab]));
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    localStorage.setItem("crm_refund_migration_v1", "done");
+  }, [columnOrder, globalStages]);
+
   const saveTabStages = (tab: string, list: string[]) => {
     setTabStages((prev) => ({ ...prev, [tab]: list }));
     if (typeof window !== "undefined") {
