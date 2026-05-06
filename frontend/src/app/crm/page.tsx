@@ -699,6 +699,7 @@ export default function CRMPage() {
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [confetti, setConfetti] = useState<ConfettiSpec[]>([]);
   const lastMouseRef = useRef({ x: 0, y: 0 });
+  const draggingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -734,6 +735,16 @@ export default function CRMPage() {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // While a card is being dragged, hello-pangea-dnd handles its own
+      // auto-scroll. Mutating scrollLeft from here desyncs Pangea's drop-
+      // target geometry and breaks drops onto newly-revealed columns.
+      if (draggingRef.current) {
+        if (scrollInterval.current) {
+          clearInterval(scrollInterval.current);
+          scrollInterval.current = null;
+        }
+        return;
+      }
       if (!scrollRef.current) return;
       const container = scrollRef.current;
       const rect = container.getBoundingClientRect();
@@ -1179,6 +1190,14 @@ export default function CRMPage() {
     }
   };
 
+  const onDragStart = () => {
+    draggingRef.current = true;
+    if (scrollInterval.current) {
+      clearInterval(scrollInterval.current);
+      scrollInterval.current = null;
+    }
+  };
+
   const onDragUpdate = (update: DragUpdate) => {
     if (update.type === "CARD") {
       setDragOverStage(update.destination?.droppableId ?? null);
@@ -1186,6 +1205,7 @@ export default function CRMPage() {
   };
 
   const onDragEnd = async (result: DropResult) => {
+    draggingRef.current = false;
     setDragOverStage(null);
     if (!result.destination) return;
 
@@ -1487,7 +1507,7 @@ export default function CRMPage() {
 
       {/* Kanban Board */}
       <div ref={scrollRef} className="flex-1 overflow-x-auto p-5 board-scroll">
-        <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
+        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
           <Droppable droppableId="board" type="COLUMN" direction="horizontal">
             {(boardProvided) => (
               <div
