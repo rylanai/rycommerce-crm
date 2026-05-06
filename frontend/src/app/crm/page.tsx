@@ -307,6 +307,7 @@ function LeadCard({
   const [addressCopied, setAddressCopied] = useState(false);
   const [editingValue, setEditingValue] = useState(false);
   const [poweringDown, setPoweringDown] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
 
   const stageLower = lead.stage.toLowerCase();
   const isDead = stageLower.includes("dead");
@@ -575,7 +576,23 @@ function LeadCard({
                 </label>
               </div>
               <p>
-                <span className="text-gray-500">Email:</span> {lead.email}
+                <span className="text-gray-500">Email:</span>{" "}
+                {lead.email ? (
+                  <span
+                    className={`cursor-pointer ${emailCopied ? "text-green-400" : "hover:text-white"}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(lead.email);
+                      setEmailCopied(true);
+                      setTimeout(() => setEmailCopied(false), 2000);
+                    }}
+                    title="Click to copy email"
+                  >
+                    {emailCopied ? "Copied!" : lead.email}
+                  </span>
+                ) : (
+                  ""
+                )}
               </p>
               <p>
                 <span className="text-gray-500">Wants to Sell:</span>{" "}
