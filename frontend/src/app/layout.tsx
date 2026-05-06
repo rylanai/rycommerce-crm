@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Inter } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-display",
+});
 
 const FB_PIXEL_ID = "1732277511272197";
 
@@ -44,7 +49,7 @@ export default function RootLayout({
           />
         </noscript>
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={`${inter.className} ${spaceGrotesk.variable}`}>{children}</body>
     </html>
   );
 }

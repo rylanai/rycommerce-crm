@@ -1334,8 +1334,8 @@ export default function CRMPage() {
                 )}
               </svg>
             </button>
-            <h1 className="select-none" title="crmEscrow">
-              <span className="text-[17px] leading-none font-extrabold tracking-tight">
+            <h1 className="select-none" title="crmEscrow" style={{ fontFamily: "var(--font-display), system-ui, sans-serif" }}>
+              <span className="text-[19px] leading-none font-bold tracking-[-0.04em]">
                 <span className="text-white">crm</span>
                 <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">Escrow</span>
               </span>
