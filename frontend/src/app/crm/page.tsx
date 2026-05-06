@@ -735,6 +735,16 @@ export default function CRMPage() {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // While a card is being dragged, hello-pangea-dnd handles its own
+      // auto-scroll. Mutating scrollLeft from here desyncs Pangea's drop-
+      // target geometry and causes drops onto the wrong column.
+      if (draggingRef.current) {
+        if (scrollInterval.current) {
+          clearInterval(scrollInterval.current);
+          scrollInterval.current = null;
+        }
+        return;
+      }
       if (!scrollRef.current) return;
       const container = scrollRef.current;
       const rect = container.getBoundingClientRect();
