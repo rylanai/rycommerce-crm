@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   DragDropContext,
   Droppable,
   Draggable,
   DropResult,
+  DragUpdate,
 } from "@hello-pangea/dnd";
 import TemplatesDrawer from "./TemplatesDrawer";
 
@@ -168,6 +169,108 @@ function formatMoney(n: number): string {
   return `${sign}$${Math.abs(Math.round(n)).toLocaleString()}`;
 }
 
+function isDimStage(stage: string): boolean {
+  const s = (stage || "").toLowerCase();
+  return s.includes("dead") || s.includes("refund");
+}
+
+function isClosedStage(stage: string): boolean {
+  return (stage || "").toLowerCase().includes("closed");
+}
+
+function AnimatedNumber({ value, format }: { value: number; format?: (n: number) => string }) {
+  const [display, setDisplay] = useState(value);
+  const [bump, setBump] = useState(0);
+  const fromRef = useRef(value);
+  useEffect(() => {
+    const from = fromRef.current;
+    const to = value;
+    if (from === to) return;
+    setBump((b) => b + 1);
+    const dur = 450;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = from + (to - from) * eased;
+      setDisplay(next);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  const out = format ? format(display) : Math.round(display).toLocaleString();
+  return (
+    <span key={bump} className="number-bump tabular-nums">
+      {out}
+    </span>
+  );
+}
+
+interface ConfettiSpec {
+  id: number;
+  x: number;
+  y: number;
+}
+
+function ConfettiBurst({ x, y, onDone }: { x: number; y: number; onDone: () => void }) {
+  const particles = useMemo(() => {
+    const colors = [
+      "#a855f7", "#6366f1", "#22c55e", "#facc15",
+      "#38bdf8", "#ec4899", "#f97316", "#34d399",
+    ];
+    return Array.from({ length: 48 }, (_, i) => {
+      const angle = (Math.PI * 2 * (i / 48)) + (Math.random() * 0.6 - 0.3);
+      const distance = 220 + Math.random() * 220;
+      const dx = Math.cos(angle) * distance;
+      const dy = Math.sin(angle) * distance * 0.6 + 380 + Math.random() * 200;
+      const up = -200 - Math.random() * 220;
+      const size = 6 + Math.random() * 8;
+      const rot = (Math.random() - 0.5) * 1080;
+      const isCircle = i % 3 === 0;
+      return {
+        color: colors[i % colors.length],
+        size,
+        rot,
+        dx,
+        dy,
+        up,
+        isCircle,
+        delay: Math.random() * 80,
+      };
+    });
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(onDone, 1700);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[60]">
+      {particles.map((p, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={{
+            left: x,
+            top: y,
+            width: p.size,
+            height: p.size * (p.isCircle ? 1 : 0.55),
+            background: p.color,
+            borderRadius: p.isCircle ? "50%" : "2px",
+            animationDelay: `${p.delay}ms`,
+            ["--dx" as string]: `${p.dx}px`,
+            ["--dy" as string]: `${p.dy}px`,
+            ["--up" as string]: `${p.up}px`,
+            ["--rot" as string]: `${p.rot}deg`,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
+
 function timeAgo(dateStr: string) {
   const now = new Date();
   const date = new Date(dateStr);
@@ -203,11 +306,26 @@ function LeadCard({
   const [copied, setCopied] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
   const [editingValue, setEditingValue] = useState(false);
+  const [poweringDown, setPoweringDown] = useState(false);
 
   const stageLower = lead.stage.toLowerCase();
   const isDead = stageLower.includes("dead");
   const isRefunded = stageLower.includes("refund");
   const isDimmed = isDead || isRefunded;
+
+  const prevStageRef = useRef(lead.stage);
+  useEffect(() => {
+    const prev = prevStageRef.current;
+    if (prev !== lead.stage) {
+      if (!isDimStage(prev) && isDimStage(lead.stage)) {
+        setPoweringDown(true);
+        const t = setTimeout(() => setPoweringDown(false), 1500);
+        prevStageRef.current = lead.stage;
+        return () => clearTimeout(t);
+      }
+      prevStageRef.current = lead.stage;
+    }
+  }, [lead.stage]);
   const needsFollowUp = !lead.last_followed_up ||
     (new Date().getTime() - new Date(lead.last_followed_up).getTime()) > 15 * 60 * 60 * 1000;
 
@@ -228,7 +346,9 @@ function LeadCard({
           {...provided.dragHandleProps}
           onClick={() => setExpanded(!expanded)}
           className={`relative rounded-xl p-3 mb-2 cursor-pointer border [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
-            isDimmed
+            poweringDown
+              ? "bg-gradient-to-b from-slate-800 to-slate-900 border-white/10 power-down"
+              : isDimmed
               ? "bg-slate-950 border-white/5 opacity-50"
               : "bg-gradient-to-b from-slate-800 to-slate-900 border-white/10 hover:border-white/20 shadow-sm hover:shadow-lg hover:shadow-black/30"
           } ${snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""}`}
@@ -290,14 +410,20 @@ function LeadCard({
                       onFollowUp(lead.id);
                     }
                   }}
-                  className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
+                  className={`flex-shrink-0 inline-flex items-center justify-center rounded-full text-[10px] font-bold cursor-pointer ${
                     needsFollowUp
-                      ? "bg-red-500 text-white pulse-red"
-                      : "bg-green-500 text-white"
+                      ? "px-2 py-0.5 bg-red-500 text-white pulse-red"
+                      : "w-5 h-5 bg-emerald-500 text-white shadow-[0_0_10px_rgba(52,211,153,0.5)]"
                   }`}
                   title={needsFollowUp ? "Click to mark as followed up" : "Followed up"}
                 >
-                  {needsFollowUp ? "Follow Up" : "✓"}
+                  {needsFollowUp ? (
+                    "Follow Up"
+                  ) : (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12.5l4.5 4.5L20 6" />
+                    </svg>
+                  )}
                 </button>
               )}
             </div>
@@ -570,9 +696,24 @@ export default function CRMPage() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const [confetti, setConfetti] = useState<ConfettiSpec[]>([]);
+  const lastMouseRef = useRef({ x: 0, y: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
+  const fireConfetti = useCallback((x: number, y: number) => {
+    setConfetti((prev) => [...prev, { id: Date.now() + Math.random(), x, y }]);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -1038,7 +1179,14 @@ export default function CRMPage() {
     }
   };
 
+  const onDragUpdate = (update: DragUpdate) => {
+    if (update.type === "CARD") {
+      setDragOverStage(update.destination?.droppableId ?? null);
+    }
+  };
+
   const onDragEnd = async (result: DropResult) => {
+    setDragOverStage(null);
     if (!result.destination) return;
 
     // Chip reorder
@@ -1069,6 +1217,10 @@ export default function CRMPage() {
     // Card move between columns
     const leadId = parseInt(result.draggableId);
     const newStage = result.destination.droppableId;
+    const movedLead = leads.find((l) => l.id === leadId);
+    if (movedLead && movedLead.stage !== newStage && isClosedStage(newStage)) {
+      fireConfetti(lastMouseRef.current.x, lastMouseRef.current.y);
+    }
 
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, stage: newStage } : l))
@@ -1172,9 +1324,20 @@ export default function CRMPage() {
                 )}
               </svg>
             </button>
-            <h1 className="text-white text-lg font-bold tracking-tight flex items-center gap-2">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.7)]" />
-              crmEscrow
+            <h1 className="flex items-center gap-2 select-none" title="crmEscrow">
+              <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 shadow-lg shadow-indigo-900/50 ring-1 ring-white/15">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 7h12" />
+                  <path d="M5 12h8" />
+                  <path d="M5 17h12" />
+                  <path d="M19 9v6" />
+                </svg>
+                <span className="absolute inset-0 rounded-lg ring-1 ring-white/20 pointer-events-none" />
+              </span>
+              <span className="text-[17px] leading-none font-extrabold tracking-tight">
+                <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">crm</span>
+                <span className="text-white">Escrow</span>
+              </span>
             </h1>
             <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-gray-300 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
@@ -1261,35 +1424,35 @@ export default function CRMPage() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 text-xs">
               <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300" title="Total leads">
-                <span className="font-semibold text-white">{filteredLeads.length}</span>
+                <span className="font-semibold text-white"><AnimatedNumber value={filteredLeads.length} /></span>
                 <span className="text-gray-500 ml-1">total</span>
               </span>
               <span
                 className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300"
                 title="Total minus refunded (excludes refund requested)"
               >
-                <span className="font-semibold text-white">{adjustedCount}</span>
+                <span className="font-semibold text-white"><AnimatedNumber value={adjustedCount} /></span>
                 <span className="text-gray-500 ml-1">adjusted</span>
               </span>
               <span
                 className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300"
                 title="Total minus no answer + refund requested + refunded"
               >
-                <span className="font-semibold text-white">{naAdjustedCount}</span>
+                <span className="font-semibold text-white"><AnimatedNumber value={naAdjustedCount} /></span>
                 <span className="text-gray-500 ml-1">NA adj</span>
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="px-2 py-1 rounded-full bg-white text-black text-xs font-bold tabular-nums" title="Wholesale">
-                W:{wCount}
+                W:<AnimatedNumber value={wCount} />
               </span>
               <span className="px-2 py-1 rounded-full bg-black text-white text-xs font-bold tabular-nums" title="Novation">
-                N:{nCount}
+                N:<AnimatedNumber value={nCount} />
               </span>
             </div>
             {pipelineValue > 0 && (
               <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
-                {formatMoney(pipelineValue)}
+                <AnimatedNumber value={pipelineValue} format={formatMoney} />
               </span>
             )}
             <span className="hidden sm:block w-px h-6 bg-white/10" />
@@ -1314,7 +1477,7 @@ export default function CRMPage() {
                 className="bg-white/5 border border-white/10 hover:border-white/20 text-gray-200 text-xs rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400 transition-colors [color-scheme:dark]"
               />
               <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 text-xs">
-                <span className="font-semibold text-white">{dayCount}</span>
+                <span className="font-semibold text-white"><AnimatedNumber value={dayCount} /></span>
                 <span className="text-gray-500 ml-1">today</span>
               </span>
             </div>
@@ -1324,7 +1487,7 @@ export default function CRMPage() {
 
       {/* Kanban Board */}
       <div ref={scrollRef} className="flex-1 overflow-x-auto p-5 board-scroll">
-        <DragDropContext onDragEnd={onDragEnd}>
+        <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
           <Droppable droppableId="board" type="COLUMN" direction="horizontal">
             {(boardProvided) => (
               <div
@@ -1346,6 +1509,8 @@ export default function CRMPage() {
                           className={`group/col w-72 rounded-2xl flex flex-col max-h-[calc(100vh-140px)] border [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
                             colSnapshot.isDragging
                               ? "bg-slate-900 border-white/20 shadow-2xl shadow-black/50"
+                              : dragOverStage === stage
+                              ? "bg-slate-900/90 border-indigo-400/40 pulse-ring"
                               : `bg-slate-900/80 border-white/5 shadow-lg shadow-black/20${accent ? " " + STAGE_ACCENT_STYLES[accent].shadow : ""}`
                           }`}
                         >
@@ -1380,7 +1545,7 @@ export default function CRMPage() {
                               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full min-w-[22px] text-center tabular-nums ${
                                 accentStyle ? accentStyle.count : "bg-white/10 text-gray-200"
                               }`}>
-                                {stageLeads.length}
+                                <AnimatedNumber value={stageLeads.length} />
                               </span>
                               <button
                                 onClick={() => {
@@ -1463,6 +1628,15 @@ export default function CRMPage() {
       </div>
 
       <TemplatesDrawer open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
+
+      {confetti.map((c) => (
+        <ConfettiBurst
+          key={c.id}
+          x={c.x}
+          y={c.y}
+          onDone={() => setConfetti((prev) => prev.filter((p) => p.id !== c.id))}
+        />
+      ))}
     </div>
   );
 }
