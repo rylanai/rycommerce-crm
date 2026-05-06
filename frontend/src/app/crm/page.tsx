@@ -229,8 +229,8 @@ function LeadCard({
           onClick={() => setExpanded(!expanded)}
           className={`relative rounded-xl p-3 mb-2 cursor-pointer border [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
             isDimmed
-              ? "bg-slate-950/60 border-white/5 opacity-50"
-              : "bg-gradient-to-b from-slate-800/70 to-slate-900/70 border-white/10 hover:border-white/20 hover:from-slate-800 hover:to-slate-900 shadow-sm hover:shadow-lg hover:shadow-black/30"
+              ? "bg-slate-950 border-white/5 opacity-50"
+              : "bg-gradient-to-b from-slate-800 to-slate-900 border-white/10 hover:border-white/20 shadow-sm hover:shadow-lg hover:shadow-black/30"
           } ${snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""}`}
         >
           {(lead.source === "propertyleads" || lead.source === "motivatedsellers") && (
@@ -1343,10 +1343,10 @@ export default function CRMPage() {
                         <div
                           ref={colProvided.innerRef}
                           {...colProvided.draggableProps}
-                          className={`group/col w-72 rounded-2xl flex flex-col max-h-[calc(100vh-140px)] border backdrop-blur-sm [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
+                          className={`group/col w-72 rounded-2xl flex flex-col max-h-[calc(100vh-140px)] border [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
                             colSnapshot.isDragging
-                              ? "bg-slate-900/90 border-white/20 shadow-2xl shadow-black/50"
-                              : `bg-slate-900/50 border-white/5 shadow-lg shadow-black/20${accent ? " " + STAGE_ACCENT_STYLES[accent].shadow : ""}`
+                              ? "bg-slate-900 border-white/20 shadow-2xl shadow-black/50"
+                              : `bg-slate-900/80 border-white/5 shadow-lg shadow-black/20${accent ? " " + STAGE_ACCENT_STYLES[accent].shadow : ""}`
                           }`}
                         >
                           <div
