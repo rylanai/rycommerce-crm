@@ -1093,11 +1093,21 @@ export default function CRMPage() {
               const s = (l.stage || "").toLowerCase();
               return s.includes("refund") && !s.includes("request");
             }).length;
+            const naAdjustedExcluded = filteredLeads.filter((l) => {
+              const s = (l.stage || "").toLowerCase();
+              return s.includes("no answer") || s.includes("refund");
+            }).length;
             const adjusted = filteredLeads.length - refundedCount;
+            const naAdjusted = filteredLeads.length - naAdjustedExcluded;
             return (
-              <span className="text-gray-400 text-sm" title="Total minus refunded (excludes refund requested)">
-                {adjusted} adjusted
-              </span>
+              <>
+                <span className="text-gray-400 text-sm" title="Total minus refunded (excludes refund requested)">
+                  {adjusted} adjusted
+                </span>
+                <span className="text-gray-400 text-sm" title="Total minus no answer + refund requested + refunded">
+                  {naAdjusted} NA adjusted
+                </span>
+              </>
             );
           })()}
           {(() => {
