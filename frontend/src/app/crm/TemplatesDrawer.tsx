@@ -120,20 +120,23 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/50" onClick={onClose} />
-      <div className="w-full max-w-md bg-gray-900 border-l border-gray-700 flex flex-col">
-        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h2 className="text-white font-bold">Templates</h2>
+      <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="w-full max-w-md bg-slate-950/95 backdrop-blur-xl border-l border-white/10 flex flex-col shadow-2xl">
+        <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.7)]" />
+            <h2 className="text-white font-bold tracking-tight">Templates</h2>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={startNew}
-              className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer"
+              className="text-xs px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold cursor-pointer shadow-lg shadow-indigo-900/30 transition"
             >
               + New
             </button>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white cursor-pointer text-xl leading-none"
+              className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 cursor-pointer text-lg leading-none transition-colors"
               title="Close"
             >
               ×
@@ -142,47 +145,53 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
         </div>
 
         {!editing && (
-          <div className="px-4 py-3 border-b border-gray-700">
-            <input
-              type="text"
-              placeholder="Search templates…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full bg-gray-800 text-white text-sm rounded px-3 py-2 outline-none border border-gray-700 focus:border-gray-500 placeholder-gray-500"
-            />
+          <div className="px-5 py-3 border-b border-white/5">
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search templates…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full bg-white/5 text-white text-sm rounded-xl pl-9 pr-3 py-2.5 outline-none border border-white/10 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 placeholder-gray-500 transition"
+              />
+            </div>
           </div>
         )}
 
         {editing ? (
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-5 space-y-3">
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Title</label>
+              <label className="text-xs uppercase tracking-wider text-gray-500 mb-1.5 block">Title</label>
               <input
                 type="text"
                 value={editing.title}
                 onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-                className="w-full bg-gray-800 text-white text-sm rounded px-3 py-2 outline-none border border-gray-700 focus:border-gray-500"
+                className="w-full bg-white/5 text-white text-sm rounded-xl px-3 py-2.5 outline-none border border-white/10 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition"
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Message</label>
+              <label className="text-xs uppercase tracking-wider text-gray-500 mb-1.5 block">Message</label>
               <textarea
                 value={editing.body}
                 onChange={(e) => setEditing({ ...editing, body: e.target.value })}
                 rows={10}
-                className="w-full bg-gray-800 text-white text-sm rounded px-3 py-2 outline-none border border-gray-700 focus:border-gray-500 resize-y"
+                className="w-full bg-white/5 text-white text-sm rounded-xl px-3 py-2.5 outline-none border border-white/10 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 resize-y transition"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <button
                 onClick={saveEditing}
-                className="flex-1 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold cursor-pointer shadow-lg shadow-indigo-900/30 transition"
               >
                 Save
               </button>
               <button
                 onClick={() => setEditing(null)}
-                className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm cursor-pointer transition"
               >
                 Cancel
               </button>
@@ -196,22 +205,22 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
             {filtered.map((t) => (
               <div
                 key={t.id}
-                className={`group rounded-lg border p-3 cursor-pointer transition-colors ${
+                className={`group rounded-xl border p-3 cursor-pointer transition-all ${
                   copiedId === t.id
-                    ? "border-green-500 bg-green-500/10"
-                    : "border-gray-700 bg-gray-800 hover:bg-gray-750 hover:border-gray-600"
+                    ? "border-emerald-400/50 bg-emerald-500/10 ring-1 ring-emerald-400/30"
+                    : "border-white/5 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15"
                 }`}
                 onClick={() => copyTemplate(t)}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <span className="text-white text-sm font-semibold">{t.title}</span>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-white text-sm font-semibold tracking-tight">{t.title}</span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditing(t);
                       }}
-                      className="text-gray-400 hover:text-white text-xs cursor-pointer"
+                      className="w-6 h-6 inline-flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 text-xs cursor-pointer"
                       title="Edit"
                     >
                       ✎
@@ -221,16 +230,21 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
                         e.stopPropagation();
                         deleteTemplate(t.id);
                       }}
-                      className="text-gray-400 hover:text-red-400 text-xs cursor-pointer"
+                      className="w-6 h-6 inline-flex items-center justify-center rounded text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 text-xs cursor-pointer"
                       title="Delete"
                     >
                       🗑
                     </button>
                   </div>
                 </div>
-                <p className="text-gray-400 text-xs whitespace-pre-wrap line-clamp-3">{t.body}</p>
+                <p className="text-gray-400 text-xs whitespace-pre-wrap line-clamp-3 leading-relaxed">{t.body}</p>
                 {copiedId === t.id && (
-                  <p className="text-green-400 text-xs mt-2 font-semibold">Copied!</p>
+                  <p className="text-emerald-400 text-xs mt-2 font-semibold flex items-center gap-1">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    Copied
+                  </p>
                 )}
               </div>
             ))}

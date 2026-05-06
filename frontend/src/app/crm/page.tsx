@@ -165,13 +165,17 @@ function LeadCard({
 
   return (
     <Draggable draggableId={String(lead.id)} index={index}>
-      {(provided) => (
+      {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={() => setExpanded(!expanded)}
-          className={`relative rounded-lg p-3 mb-2 cursor-pointer border ${isDimmed ? "bg-gray-900 border-gray-800 opacity-50" : "bg-gray-800 border-gray-700 hover:bg-gray-750"}`}
+          className={`relative rounded-xl p-3 mb-2 cursor-pointer border transition-all ${
+            isDimmed
+              ? "bg-slate-950/60 border-white/5 opacity-50"
+              : "bg-gradient-to-b from-slate-800/70 to-slate-900/70 border-white/10 hover:border-white/20 hover:from-slate-800 hover:to-slate-900 shadow-sm hover:shadow-lg hover:shadow-black/30"
+          } ${snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40 rotate-[0.5deg]" : ""}`}
         >
           {(lead.source === "propertyleads" || lead.source === "motivatedsellers") && (
             <div
@@ -509,8 +513,27 @@ export default function CRMPage() {
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1009,24 +1032,30 @@ export default function CRMPage() {
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-slate-900 flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-indigo-600/20 blur-3xl" />
+          <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-violet-600/20 blur-3xl" />
+        </div>
         <form
           onSubmit={handleLogin}
-          className="bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-sm"
+          className="relative bg-slate-900/70 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-sm ring-1 ring-white/5"
         >
-          <h2 className="text-white text-xl font-bold mb-6 text-center">
-            crmEscrow
-          </h2>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.7)]" />
+            <h2 className="text-white text-xl font-bold tracking-tight">crmEscrow</h2>
+          </div>
+          <p className="text-gray-500 text-xs text-center mb-6">Enter your password to continue</p>
           <input
             type="password"
-            placeholder="Enter password"
+            placeholder="Password"
             value={passwordInput}
             onChange={(e) => setPasswordInput(e.target.value)}
-            className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 outline-none"
+            className="w-full p-3 rounded-xl bg-white/5 text-white border border-white/10 mb-3 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition placeholder-gray-600"
           />
           <button
             type="submit"
-            className="w-full p-3 rounded-lg bg-blue-600 text-white font-bold cursor-pointer hover:bg-blue-700"
+            className="w-full p-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold cursor-pointer shadow-lg shadow-indigo-900/40 transition-all"
           >
             Login
           </button>
@@ -1035,145 +1064,248 @@ export default function CRMPage() {
     );
   }
 
+  const refundedCount = filteredLeads.filter((l) => {
+    const s = (l.stage || "").toLowerCase();
+    return s.includes("refund") && !s.includes("request");
+  }).length;
+  const naAdjustedExcluded = filteredLeads.filter((l) => {
+    const s = (l.stage || "").toLowerCase();
+    return s.includes("no answer") || s.includes("refund");
+  }).length;
+  const adjustedCount = filteredLeads.length - refundedCount;
+  const naAdjustedCount = filteredLeads.length - naAdjustedExcluded;
+  const wCount = filteredLeads.filter((l) => l.deal_type === "W").length;
+  const nCount = filteredLeads.filter((l) => l.deal_type === "N").length;
+  const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadValue(l), 0);
+  const dayCount = filteredLeads.filter((l) => {
+    const created = new Date(l.created_at);
+    const selected = new Date(selectedDate + "T00:00:00");
+    return created.toDateString() === selected.toDateString();
+  }).length;
+
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-gray-950 to-slate-900 text-gray-100">
       {/* Top Bar */}
-      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-white text-xl font-bold">crmEscrow</h1>
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="chips" type="CHIP" direction="horizontal">
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className="flex items-center gap-2"
-              >
-                {chipOrder.map((value, index) => (
-                  <Draggable key={value} draggableId={`chip-${value}`} index={index}>
-                    {(dragProvided, dragSnapshot) => (
-                      <div
-                        ref={dragProvided.innerRef}
-                        {...dragProvided.draggableProps}
-                        {...dragProvided.dragHandleProps}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => {
-                          if (!dragSnapshot.isDragging) setSourceFilter(value);
-                        }}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold cursor-grab active:cursor-grabbing transition-colors select-none ${
-                          sourceFilter === value
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        } ${dragSnapshot.isDragging ? "opacity-80 shadow-lg" : ""}`}
-                      >
-                        {value}
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
+      <div className="sticky top-0 z-30 backdrop-blur-xl bg-slate-950/70 border-b border-white/5 supports-[backdrop-filter]:bg-slate-950/60">
+        <div className="px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+          {/* Left cluster: hamburger + brand + active filter */}
+          <div className="flex items-center gap-3" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className={`relative h-9 w-9 inline-flex items-center justify-center rounded-lg border transition-all cursor-pointer ${
+                menuOpen
+                  ? "bg-white/10 border-white/20 text-white"
+                  : "bg-white/5 border-white/10 text-gray-300 hover:text-white hover:bg-white/10"
+              }`}
+              title="Sources"
+              aria-label="Toggle source menu"
+              aria-expanded={menuOpen}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {menuOpen ? (
+                  <>
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </>
+                ) : (
+                  <>
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </>
+                )}
+              </svg>
+            </button>
+            <h1 className="text-white text-lg font-bold tracking-tight flex items-center gap-2">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.7)]" />
+              crmEscrow
+            </h1>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-gray-300 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+              {sourceFilter}
+            </span>
+
+            {/* Hamburger dropdown panel */}
+            {menuOpen && (
+              <div className="absolute left-4 top-14 z-40 w-64 rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-black/50 ring-1 ring-white/5">
+                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Sources</span>
+                  <span className="text-[10px] text-gray-500">drag to reorder</span>
+                </div>
+                <div className="p-2">
+                  <DragDropContext onDragEnd={onDragEnd}>
+                    <Droppable droppableId="chips" type="CHIP">
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex flex-col gap-1"
+                        >
+                          {chipOrder.map((value, index) => (
+                            <Draggable key={value} draggableId={`chip-${value}`} index={index}>
+                              {(dragProvided, dragSnapshot) => {
+                                const active = sourceFilter === value;
+                                return (
+                                  <div
+                                    ref={dragProvided.innerRef}
+                                    {...dragProvided.draggableProps}
+                                    {...dragProvided.dragHandleProps}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
+                                      if (!dragSnapshot.isDragging) {
+                                        setSourceFilter(value);
+                                        setMenuOpen(false);
+                                      }
+                                    }}
+                                    className={`group flex items-center justify-between px-3 py-2 rounded-xl text-sm font-semibold cursor-grab active:cursor-grabbing select-none transition-all ${
+                                      active
+                                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-900/40"
+                                        : "text-gray-300 hover:text-white hover:bg-white/5"
+                                    } ${dragSnapshot.isDragging ? "opacity-90 ring-1 ring-white/20 shadow-2xl" : ""}`}
+                                  >
+                                    <span className="flex items-center gap-2">
+                                      <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-gray-500 group-hover:bg-gray-300"}`} />
+                                      {value}
+                                    </span>
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      className={`opacity-0 ${active ? "opacity-100" : "group-hover:opacity-50"} transition-opacity`}
+                                    >
+                                      <circle cx="9" cy="6" r="1" />
+                                      <circle cx="15" cy="6" r="1" />
+                                      <circle cx="9" cy="12" r="1" />
+                                      <circle cx="15" cy="12" r="1" />
+                                      <circle cx="9" cy="18" r="1" />
+                                      <circle cx="15" cy="18" r="1" />
+                                    </svg>
+                                  </div>
+                                );
+                              }}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                </div>
               </div>
             )}
-          </Droppable>
-        </DragDropContext>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setTemplatesOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-semibold cursor-pointer"
-            title="Open message templates"
-          >
-            Templates
-          </button>
-          <span className="text-gray-400 text-sm">
-            {filteredLeads.length} total
-          </span>
-          {(() => {
-            // "Refunded" subtracts from adjusted count; "Refund Requested" only greys out.
-            const refundedCount = filteredLeads.filter((l) => {
-              const s = (l.stage || "").toLowerCase();
-              return s.includes("refund") && !s.includes("request");
-            }).length;
-            const naAdjustedExcluded = filteredLeads.filter((l) => {
-              const s = (l.stage || "").toLowerCase();
-              return s.includes("no answer") || s.includes("refund");
-            }).length;
-            const adjusted = filteredLeads.length - refundedCount;
-            const naAdjusted = filteredLeads.length - naAdjustedExcluded;
-            return (
-              <>
-                <span className="text-gray-400 text-sm" title="Total minus refunded (excludes refund requested)">
-                  {adjusted} adjusted
-                </span>
-                <span className="text-gray-400 text-sm" title="Total minus no answer + refund requested + refunded">
-                  {naAdjusted} NA adjusted
-                </span>
-              </>
-            );
-          })()}
-          {(() => {
-            const wCount = filteredLeads.filter((l) => l.deal_type === "W").length;
-            const nCount = filteredLeads.filter((l) => l.deal_type === "N").length;
-            return (
-              <span className="text-sm flex items-center gap-2">
-                <span className="bg-white text-black font-semibold px-2 py-0.5 rounded">W:{wCount}</span>
-                <span className="bg-black text-white font-semibold px-2 py-0.5 rounded border border-gray-600">N:{nCount}</span>
+          </div>
+
+          {/* Right cluster: stats + actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300" title="Total leads">
+                <span className="font-semibold text-white">{filteredLeads.length}</span>
+                <span className="text-gray-500 ml-1">total</span>
               </span>
-            );
-          })()}
-          {(() => {
-            const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadValue(l), 0);
-            return pipelineValue > 0 ? (
-              <span className="text-green-400 text-sm font-semibold">
-                Total Value: {formatMoney(pipelineValue)}
+              <span
+                className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300"
+                title="Total minus refunded (excludes refund requested)"
+              >
+                <span className="font-semibold text-white">{adjustedCount}</span>
+                <span className="text-gray-500 ml-1">adjusted</span>
               </span>
-            ) : null;
-          })()}
-          <span className="text-gray-500 text-sm">|</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-gray-700 text-gray-300 text-sm rounded-lg px-2 py-1 border border-gray-600 outline-none"
-            />
-            <span className="text-gray-400 text-sm">
-              {filteredLeads.filter((l) => {
-                const created = new Date(l.created_at);
-                const selected = new Date(selectedDate + "T00:00:00");
-                return created.toDateString() === selected.toDateString();
-              }).length} leads
-            </span>
+              <span
+                className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300"
+                title="Total minus no answer + refund requested + refunded"
+              >
+                <span className="font-semibold text-white">{naAdjustedCount}</span>
+                <span className="text-gray-500 ml-1">NA adj</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="px-2 py-1 rounded-full bg-white text-black text-xs font-bold tabular-nums" title="Wholesale">
+                W:{wCount}
+              </span>
+              <span className="px-2 py-1 rounded-full bg-black text-white text-xs font-bold tabular-nums" title="Novation">
+                N:{nCount}
+              </span>
+            </div>
+            {pipelineValue > 0 && (
+              <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+                {formatMoney(pipelineValue)}
+              </span>
+            )}
+            <span className="hidden sm:block w-px h-6 bg-white/10" />
+            <button
+              onClick={() => setTemplatesOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-200 text-xs font-semibold cursor-pointer transition-colors"
+              title="Open message templates"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="9" y1="13" x2="15" y2="13" />
+                <line x1="9" y1="17" x2="13" y2="17" />
+              </svg>
+              Templates
+            </button>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-white/5 border border-white/10 hover:border-white/20 text-gray-200 text-xs rounded-lg px-2 py-1.5 outline-none focus:border-indigo-400 transition-colors [color-scheme:dark]"
+              />
+              <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 text-xs">
+                <span className="font-semibold text-white">{dayCount}</span>
+                <span className="text-gray-500 ml-1">today</span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Kanban Board */}
-      <div ref={scrollRef} className="flex-1 overflow-x-auto p-4">
+      <div ref={scrollRef} className="flex-1 overflow-x-auto p-5 board-scroll">
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="board" type="COLUMN" direction="horizontal">
             {(boardProvided) => (
               <div
                 ref={boardProvided.innerRef}
                 {...boardProvided.droppableProps}
-                className="flex gap-3 min-w-max"
+                className="flex gap-4 min-w-max"
               >
                 {allStages.map((stage, colIndex) => {
                   const stageLeads = getLeadsByStage(stage);
-                  const isCustom = customStages.some((s) => s.name === stage);
+                  const colValue = stageLeads.reduce((sum, l) => sum + leadValue(l), 0);
+                  const stageL = stage.toLowerCase();
+                  const isClosedCol = stageL.includes("closed");
+                  const isDeadCol = stageL.includes("dead") || stageL.includes("refund");
                   return (
                     <Draggable key={stage} draggableId={`col-${stage}`} index={colIndex}>
-                      {(colProvided) => (
+                      {(colProvided, colSnapshot) => (
                         <div
                           ref={colProvided.innerRef}
                           {...colProvided.draggableProps}
-                          className="w-72 bg-gray-800 rounded-xl flex flex-col max-h-[calc(100vh-140px)]"
+                          className={`group/col w-72 rounded-2xl flex flex-col max-h-[calc(100vh-140px)] border backdrop-blur-sm transition-all ${
+                            colSnapshot.isDragging
+                              ? "bg-slate-900/90 border-white/20 shadow-2xl shadow-black/50"
+                              : "bg-slate-900/50 border-white/5 shadow-lg shadow-black/20"
+                          }`}
                         >
                           <div
                             {...colProvided.dragHandleProps}
-                            className="px-3 py-3 border-b border-gray-700 flex justify-between items-center cursor-grab"
+                            className={`px-4 py-3 border-b border-white/5 flex justify-between items-center cursor-grab rounded-t-2xl ${
+                              isClosedCol
+                                ? "bg-gradient-to-b from-emerald-500/10 to-transparent"
+                                : isDeadCol
+                                ? "bg-gradient-to-b from-rose-500/5 to-transparent"
+                                : "bg-gradient-to-b from-white/[0.04] to-transparent"
+                            }`}
                           >
                             <h3
-                              className="text-white text-sm font-semibold cursor-pointer"
+                              className="text-white text-sm font-semibold tracking-tight cursor-pointer truncate"
                               onDoubleClick={(e) => {
                                 e.stopPropagation();
                                 renameColumn(stage);
@@ -1182,16 +1314,13 @@ export default function CRMPage() {
                             >
                               {stage}
                             </h3>
-                            <div className="flex items-center gap-2">
-                              {(() => {
-                                const colValue = stageLeads.reduce((sum, l) => sum + leadValue(l), 0);
-                                return colValue > 0 ? (
-                                  <span className="text-green-400 text-xs font-semibold">
-                                    Total: {formatMoney(colValue)}
-                                  </span>
-                                ) : null;
-                              })()}
-                              <span className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded-full">
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {colValue > 0 && (
+                                <span className="text-emerald-300 text-[11px] font-semibold tabular-nums">
+                                  {formatMoney(colValue)}
+                                </span>
+                              )}
+                              <span className="bg-white/10 text-gray-200 text-[11px] font-semibold px-2 py-0.5 rounded-full min-w-[22px] text-center tabular-nums">
                                 {stageLeads.length}
                               </span>
                               <button
@@ -1213,12 +1342,11 @@ export default function CRMPage() {
                                   }
                                   const newOrder = globalStages.filter((s) => s !== stage);
                                   saveColumnOrder(newOrder);
-                                  // Also remove from every per-tab list so it doesn't reappear
                                   for (const t of Object.keys(tabStages)) {
                                     saveTabStages(t, tabStages[t].filter((s) => s !== stage));
                                   }
                                 }}
-                                className="text-gray-500 hover:text-red-400 cursor-pointer text-xs"
+                                className="text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md w-5 h-5 inline-flex items-center justify-center cursor-pointer text-xs opacity-0 group-hover/col:opacity-100 transition-opacity"
                                 title="Delete column"
                               >
                                 ✕
@@ -1226,11 +1354,13 @@ export default function CRMPage() {
                             </div>
                           </div>
                           <Droppable droppableId={stage} type="CARD">
-                            {(provided) => (
+                            {(provided, snapshot) => (
                               <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className="flex-1 overflow-y-auto p-2 min-h-[100px]"
+                                className={`flex-1 overflow-y-auto p-2 min-h-[100px] transition-colors rounded-b-2xl ${
+                                  snapshot.isDraggingOver ? "bg-indigo-500/5" : ""
+                                }`}
                               >
                                 {stageLeads.map((lead, index) => (
                                   <LeadCard
@@ -1257,9 +1387,10 @@ export default function CRMPage() {
                 {boardProvided.placeholder}
                 <button
                   onClick={addCustomStage}
-                  className="w-72 min-h-[100px] bg-gray-800 rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-750 border-2 border-dashed border-gray-700 hover:border-gray-500 flex-shrink-0"
+                  className="w-72 min-h-[100px] rounded-2xl flex flex-col items-center justify-center gap-1 cursor-pointer text-gray-500 hover:text-gray-200 bg-white/[0.02] hover:bg-white/[0.05] border-2 border-dashed border-white/10 hover:border-white/30 transition-all flex-shrink-0"
                 >
-                  <span className="text-gray-500 text-2xl">+</span>
+                  <span className="text-2xl leading-none">+</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">Add column</span>
                 </button>
               </div>
             )}
@@ -1268,8 +1399,8 @@ export default function CRMPage() {
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-800 border-t border-gray-700 px-6 py-3 text-center">
-        <p className="text-gray-500 text-sm">&copy; 2025 Ry Commerce LLC</p>
+      <div className="border-t border-white/5 bg-slate-950/40 backdrop-blur-sm px-6 py-2 text-center">
+        <p className="text-gray-600 text-[11px] tracking-wide">&copy; 2025 Ry Commerce LLC</p>
       </div>
 
       <TemplatesDrawer open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
