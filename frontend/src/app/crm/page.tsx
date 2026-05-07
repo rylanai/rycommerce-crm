@@ -291,6 +291,8 @@ function LeadCard({
   onUpdateNotes,
   onUpdatePrice,
   onUpdateDealType,
+  onUpdateStage,
+  stages,
   firstColumnName,
 }: {
   lead: Lead;
@@ -300,6 +302,8 @@ function LeadCard({
   onUpdateNotes: (id: number, notes: string) => void;
   onUpdatePrice: (id: number, field: "dispo_price" | "offer_price" | "value", value: string) => void;
   onUpdateDealType: (id: number, dealType: "W" | "N" | null) => void;
+  onUpdateStage: (id: number, newStage: string) => void;
+  stages: string[];
   firstColumnName: string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -518,6 +522,29 @@ function LeadCard({
 
           {expanded && (
             <div className="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-300 space-y-1">
+              <div
+                className="flex items-center gap-2 mb-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-gray-500">Stage:</span>
+                <select
+                  value={lead.stage}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (next && next !== lead.stage) onUpdateStage(lead.id, next);
+                  }}
+                  className="flex-1 bg-slate-900 border border-white/10 hover:border-white/20 focus:border-indigo-400 text-white text-xs rounded-md px-2 py-1.5 outline-none cursor-pointer [color-scheme:dark]"
+                >
+                  {!stages.includes(lead.stage) && (
+                    <option value={lead.stage}>{lead.stage}</option>
+                  )}
+                  {stages.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div
                 className="flex items-center gap-2 mb-2"
                 onClick={(e) => e.stopPropagation()}
@@ -1207,6 +1234,27 @@ export default function CRMPage() {
     }
   };
 
+  const handleUpdateStage = async (id: number, newStage: string) => {
+    const lead = leads.find((l) => l.id === id);
+    if (!lead || lead.stage === newStage) return;
+    if (isClosedStage(newStage) && !isClosedStage(lead.stage)) {
+      fireConfetti(lastMouseRef.current.x, lastMouseRef.current.y);
+    }
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, stage: newStage } : l))
+    );
+    try {
+      await fetch(`${API_URL}/api/leads/${id}/stage`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: newStage }),
+      });
+    } catch (err) {
+      console.error("Error updating stage:", err);
+      fetchLeads();
+    }
+  };
+
   const onDragStart = () => {
     draggingRef.current = true;
     if (scrollInterval.current) {
@@ -1624,6 +1672,8 @@ export default function CRMPage() {
                                     onUpdateNotes={handleUpdateNotes}
                                     onUpdatePrice={handleUpdatePrice}
                                     onUpdateDealType={handleUpdateDealType}
+                                    onUpdateStage={handleUpdateStage}
+                                    stages={allStages}
                                     firstColumnName={firstColumnName}
                                   />
                                 ))}
