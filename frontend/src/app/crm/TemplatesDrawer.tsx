@@ -27,11 +27,12 @@ const DEFAULTS: Template[] = [
   { id: "t16", title: "No response to photos", body: "Hi do you happen to have photos of the property? No worries if not" },
   { id: "t17", title: "No response to access", body: "Hi would our team be able to access the property throughout closing? We would confirm the date and time with you beforehand" },
   { id: "t18", title: "No response after sent contract", body: "Hi just wanted to follow up. Are you still looking to sell? Is there anything I can do to help?\n\nOr\n\nIf you want to sell feel free to reach out, we are good to go on our end 👍" },
+  { id: "t19", title: "No response to novation offer", body: "If there’s a price somewhere around there that would make it work for you let me know and I can try to get my brother in law on board" },
 ];
 
 const STORAGE_KEY = "crm_templates_v1";
 const SEED_VERSION_KEY = "crm_templates_seed_version";
-const SEED_VERSION = "2";
+const SEED_VERSION = "3";
 
 function loadTemplates(): Template[] {
   if (typeof window === "undefined") return DEFAULTS;
