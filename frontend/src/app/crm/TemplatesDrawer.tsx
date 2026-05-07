@@ -34,11 +34,12 @@ const DEFAULTS: Template[] = [
   { id: "t17", title: "No response to access", body: "Hi would our team be able to access the property throughout closing? We would confirm the date and time with you beforehand" },
   { id: "t18", title: "No response after sent contract", body: "Hi just wanted to follow up. Are you still looking to sell? Is there anything I can do to help?\n\nOr\n\nIf you want to sell feel free to reach out, we are good to go on our end 👍" },
   { id: "t19", title: "No response to novation offer", body: "If there’s a price somewhere around there that would make it work for you let me know and I can try to get my brother in law on board" },
+  { id: "t20", title: "Asking price way too high — Novation offer", body: "So with the year that it was built, the repair cost, and it backing up to the road right there that does put us more in that range of where 3741 Er Smyth Dr, Mims, FL 32754 sold for which was $430,000.\n\nHowever, the good news is that yours is larger and has that extra 1.5 bath, so that would put you at around $470,000 if you sold on the market with a realtor. Then obviously with the realtor commissions, title fees, and repair costs for the roof you’re looking at probably a 12% hit on that sales price which leaves you with $414,000 net cash.\n\nSo then with the all cash route we’re looking at even lower than that unfortunately. I talked with all of my buddies who also invest in Mims and the highest maximum offer kept coming back too low at $401,000, so that wouldn’t work either.\n\nI do however have a process that’s recently become very popular with all of the sellers I work with in Mims. I assume it’s because there’s still no work on your end and you end up with a lot more money. I ran all of the numbers for this too and it actually came back right at $422,000 net cash to you. Do you want to hear how the process works? It’s just as simple as cash and there’s still no work, fees, or repairs on your end 👍" },
 ];
 
 const STORAGE_KEY = "crm_templates_v1";
 const SEED_VERSION_KEY = "crm_templates_seed_version";
-const SEED_VERSION = "3";
+const SEED_VERSION = "4";
 
 function loadTemplates(): Template[] {
   if (typeof window === "undefined") return DEFAULTS;
