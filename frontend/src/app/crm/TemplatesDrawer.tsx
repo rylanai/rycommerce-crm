@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
 
 interface Template {
   id: string;
@@ -117,6 +123,17 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
     persist(templates.filter((t) => t.id !== id));
   };
 
+  const onDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    if (result.source.index === result.destination.index) return;
+    const next = [...templates];
+    const [moved] = next.splice(result.source.index, 1);
+    next.splice(result.destination.index, 0, moved);
+    persist(next);
+  };
+
+  const reorderable = query.trim() === "";
+
   if (!open) return null;
 
   return (
@@ -199,56 +216,104 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto p-3">
             {filtered.length === 0 && (
               <p className="text-gray-500 text-sm text-center mt-8">No templates match.</p>
             )}
-            {filtered.map((t) => (
-              <div
-                key={t.id}
-                className={`group rounded-xl border p-3 cursor-pointer transition-all ${
-                  copiedId === t.id
-                    ? "border-emerald-400/50 bg-emerald-500/10 ring-1 ring-emerald-400/30"
-                    : "border-white/5 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15"
-                }`}
-                onClick={() => copyTemplate(t)}
-              >
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <span className="text-white text-sm font-semibold tracking-tight">{t.title}</span>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditing(t);
-                      }}
-                      className="w-6 h-6 inline-flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 text-xs cursor-pointer"
-                      title="Edit"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteTemplate(t.id);
-                      }}
-                      className="w-6 h-6 inline-flex items-center justify-center rounded text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 text-xs cursor-pointer"
-                      title="Delete"
-                    >
-                      🗑
-                    </button>
+            {!reorderable && (
+              <p className="text-gray-500 text-[11px] text-center mb-2 italic">Clear search to reorder</p>
+            )}
+            <DragDropContext onDragEnd={onDragEnd}>
+              <Droppable droppableId="templates" isDropDisabled={!reorderable}>
+                {(dropProvided) => (
+                  <div
+                    ref={dropProvided.innerRef}
+                    {...dropProvided.droppableProps}
+                    className="space-y-2"
+                  >
+                    {filtered.map((t, index) => (
+                      <Draggable
+                        key={t.id}
+                        draggableId={t.id}
+                        index={index}
+                        isDragDisabled={!reorderable}
+                      >
+                        {(dragProvided, dragSnapshot) => (
+                          <div
+                            ref={dragProvided.innerRef}
+                            {...dragProvided.draggableProps}
+                            className={`group rounded-xl border p-3 cursor-pointer [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
+                              copiedId === t.id
+                                ? "border-emerald-400/50 bg-emerald-500/10 ring-1 ring-emerald-400/30"
+                                : "border-white/5 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15"
+                            } ${dragSnapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""}`}
+                            onClick={() => {
+                              if (!dragSnapshot.isDragging) copyTemplate(t);
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <div className="flex items-start gap-2 flex-1 min-w-0">
+                                {reorderable && (
+                                  <button
+                                    {...dragProvided.dragHandleProps}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-gray-500 hover:text-gray-200 cursor-grab active:cursor-grabbing flex-shrink-0 mt-0.5"
+                                    title="Drag to reorder"
+                                    aria-label="Drag to reorder"
+                                  >
+                                    <svg width="12" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                      <circle cx="9" cy="6" r="1.5" />
+                                      <circle cx="15" cy="6" r="1.5" />
+                                      <circle cx="9" cy="12" r="1.5" />
+                                      <circle cx="15" cy="12" r="1.5" />
+                                      <circle cx="9" cy="18" r="1.5" />
+                                      <circle cx="15" cy="18" r="1.5" />
+                                    </svg>
+                                  </button>
+                                )}
+                                <span className="text-white text-sm font-semibold tracking-tight truncate">{t.title}</span>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditing(t);
+                                  }}
+                                  className="w-6 h-6 inline-flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 text-xs cursor-pointer"
+                                  title="Edit"
+                                >
+                                  ✎
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteTemplate(t.id);
+                                  }}
+                                  className="w-6 h-6 inline-flex items-center justify-center rounded text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 text-xs cursor-pointer"
+                                  title="Delete"
+                                >
+                                  🗑
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-gray-400 text-xs whitespace-pre-wrap line-clamp-3 leading-relaxed">{t.body}</p>
+                            {copiedId === t.id && (
+                              <p className="text-emerald-400 text-xs mt-2 font-semibold flex items-center gap-1">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M20 6L9 17l-5-5" />
+                                </svg>
+                                Copied
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {dropProvided.placeholder}
                   </div>
-                </div>
-                <p className="text-gray-400 text-xs whitespace-pre-wrap line-clamp-3 leading-relaxed">{t.body}</p>
-                {copiedId === t.id && (
-                  <p className="text-emerald-400 text-xs mt-2 font-semibold flex items-center gap-1">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                    Copied
-                  </p>
                 )}
-              </div>
-            ))}
+              </Droppable>
+            </DragDropContext>
           </div>
         )}
       </div>
