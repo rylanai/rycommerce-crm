@@ -244,10 +244,12 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
                             ref={dragProvided.innerRef}
                             {...dragProvided.draggableProps}
                             className={`group rounded-xl border p-3 cursor-pointer [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
-                              copiedId === t.id
+                              dragSnapshot.isDragging
+                                ? "bg-slate-800 border-indigo-400/50 ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40"
+                                : copiedId === t.id
                                 ? "border-emerald-400/50 bg-emerald-500/10 ring-1 ring-emerald-400/30"
                                 : "border-white/5 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15"
-                            } ${dragSnapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""}`}
+                            }`}
                             onClick={() => {
                               if (!dragSnapshot.isDragging) copyTemplate(t);
                             }}
