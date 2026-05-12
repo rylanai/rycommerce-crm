@@ -4,6 +4,8 @@ const { Pool } = require('pg');
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 
+const NOTES_TEMPLATE = 'Asking: \nDispo: \nNotes: ';
+
 async function notifySlack(lead) {
   if (!SLACK_WEBHOOK_URL) return;
   try {
@@ -111,13 +113,13 @@ app.post('/api/leads', async (req, res) => {
         first_name, last_name, email, phone, property_address,
         wants_to_sell, timeline, repairs, sell_reason,
         stage, source, utm_campaign, utm_source,
-        sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+        sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5, notes
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
       RETURNING *`,
       [first_name, last_name, email, phone, property_address,
        wants_to_sell, timeline, repairs, sell_reason,
        defaultStage, source || 'meta', utm_campaign, utm_source,
-       sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5]
+       sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5, NOTES_TEMPLATE]
     );
 
     const newLead = result.rows[0];
@@ -192,8 +194,7 @@ app.post('/api/leads/propertyleads', async (req, res) => {
     void askingPrice; void ownedHowLong; void livingInHouse; void county;
     void leadCost; void leadId; void dateCreated; void comments;
 
-    // Leave notes empty so the "Add note..." input renders like other cards
-    const notes = null;
+    const notes = NOTES_TEMPLATE;
 
     let defaultStage = 'New Lead';
     try {
@@ -286,7 +287,7 @@ app.post('/api/leads/motivatedsellers', async (req, res) => {
       RETURNING *`,
       [first_name, last_name, email, phone, property_address,
        wants_to_sell, timeline, '', '',
-       defaultStage, 'motivatedsellers', null]
+       defaultStage, 'motivatedsellers', NOTES_TEMPLATE]
     );
 
     const newLead = result.rows[0];
