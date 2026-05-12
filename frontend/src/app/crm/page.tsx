@@ -756,6 +756,7 @@ export default function CRMPage() {
   const [confetti, setConfetti] = useState<ConfettiSpec[]>([]);
   const lastMouseRef = useRef({ x: 0, y: 0 });
   const draggingRef = useRef(false);
+  const lastDragEndRef = useRef(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1144,7 +1145,14 @@ export default function CRMPage() {
     if (authenticated) {
       fetchLeads();
       fetchStages();
-      const interval = setInterval(fetchLeads, 10000);
+      // Poll, but skip ticks during a drag so the re-render doesn't fight the
+      // drop animation. Also skip for ~2s after a drag ends so the optimistic
+      // local state isn't overwritten before the server's PATCH lands.
+      const interval = setInterval(() => {
+        if (draggingRef.current) return;
+        if (Date.now() - lastDragEndRef.current < 2000) return;
+        fetchLeads();
+      }, 15000);
       return () => clearInterval(interval);
     }
   }, [authenticated, fetchLeads, fetchStages]);
@@ -1307,16 +1315,14 @@ export default function CRMPage() {
     setLeads((prev) =>
       prev.map((l) => (l.id === id ? { ...l, stage: newStage } : l))
     );
-    try {
-      await fetch(`${API_URL}/api/leads/${id}/stage`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: newStage }),
-      });
-    } catch (err) {
+    fetch(`${API_URL}/api/leads/${id}/stage`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage: newStage }),
+    }).catch((err) => {
       console.error("Error updating stage:", err);
       fetchLeads();
-    }
+    });
   };
 
   const onDragStart = () => {
@@ -1374,17 +1380,18 @@ export default function CRMPage() {
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, stage: newStage } : l))
     );
+    lastDragEndRef.current = Date.now();
 
-    try {
-      await fetch(`${API_URL}/api/leads/${leadId}/stage`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: newStage }),
-      });
-    } catch (err) {
+    // Fire-and-forget; the optimistic local update already shows the move.
+    // On failure, refetch to resync with the server.
+    fetch(`${API_URL}/api/leads/${leadId}/stage`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage: newStage }),
+    }).catch((err) => {
       console.error("Error updating stage:", err);
       fetchLeads();
-    }
+    });
   };
 
   if (!authenticated) {
