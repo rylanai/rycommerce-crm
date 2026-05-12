@@ -727,13 +727,25 @@ export default function CRMPage() {
     }
   };
   const [chipOrder, setChipOrder] = useState<string[]>(() => {
+    const defaults = ["ALL", "META", "SMS", "PPC", "PPL", "LUXURY"];
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("crm_chip_order");
       if (saved) {
-        try { return JSON.parse(saved); } catch {}
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const missing = defaults.filter((d) => !parsed.includes(d));
+            if (missing.length > 0) {
+              const merged = [...parsed, ...missing];
+              localStorage.setItem("crm_chip_order", JSON.stringify(merged));
+              return merged;
+            }
+            return parsed;
+          }
+        } catch {}
       }
     }
-    return ["ALL", "META", "SMS", "PPC", "PPL", "LUXURY"];
+    return defaults;
   });
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
