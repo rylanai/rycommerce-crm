@@ -117,7 +117,7 @@ function stageAccent(stage: string): StageAccent | null {
   if (s.includes("contract")) return "sky";
   if (
     s.includes("new lead") ||
-    s.includes("no answer") ||
+    s.includes("answer") ||
     s.includes("asking") ||
     s.includes("gathering") ||
     s.includes("offer")
