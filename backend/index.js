@@ -469,6 +469,53 @@ app.put('/api/settings/column-order', async (req, res) => {
   }
 });
 
+// GET /api/settings/ui-state — get per-user UI state (tab order + per-tab columns).
+// Stored as a single JSON blob under settings key 'ui_state'. Cross-browser sync.
+app.get('/api/settings/ui-state', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'ui_state'");
+    if (result.rows.length === 0) {
+      return res.json({ state: null });
+    }
+    res.json({ state: JSON.parse(result.rows[0].value) });
+  } catch (err) {
+    console.error('Error fetching ui-state:', err);
+    res.status(500).json({ error: 'Failed to fetch ui-state' });
+  }
+});
+
+// PUT /api/settings/ui-state — save the UI state blob
+app.put('/api/settings/ui-state', async (req, res) => {
+  try {
+    const { state } = req.body;
+    await pool.query(
+      `INSERT INTO settings (key, value) VALUES ('ui_state', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [JSON.stringify(state)]
+    );
+    res.json({ message: 'UI state saved' });
+  } catch (err) {
+    console.error('Error saving ui-state:', err);
+    res.status(500).json({ error: 'Failed to save ui-state' });
+  }
+});
+
+// PATCH /api/leads/stage/rename — bulk-update every lead in `from` stage to `to` stage
+app.patch('/api/leads/stage/rename', async (req, res) => {
+  try {
+    const { from, to } = req.body;
+    if (!from || !to) return res.status(400).json({ error: 'from + to required' });
+    const result = await pool.query(
+      'UPDATE leads SET stage = $1 WHERE stage = $2 RETURNING id',
+      [to, from]
+    );
+    res.json({ updated: result.rowCount });
+  } catch (err) {
+    console.error('Error renaming stage:', err);
+    res.status(500).json({ error: 'Failed to rename stage' });
+  }
+});
+
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Rycommerce CRM API' });
 });

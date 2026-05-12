@@ -918,6 +918,58 @@ export default function CRMPage() {
     localStorage.setItem("crm_refund_migration_v1", "done");
   }, [columnOrder, globalStages]);
 
+  // Server-backed UI state (chipOrder + tabStages). Loads once on mount, then
+  // every local change is pushed to the server so all browsers/devices see the
+  // same tab order + per-tab column lists. localStorage is kept in sync as a
+  // fast-paint cache only.
+  const uiStateLoadedRef = useRef(false);
+  const skipNextUIStatePushRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/settings/ui-state`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data && data.state) {
+          skipNextUIStatePushRef.current = true;
+          if (Array.isArray(data.state.chipOrder)) {
+            const defaults = ["ALL", "META", "SMS", "PPC", "PPL", "LUXURY"];
+            const missing = defaults.filter((d) => !data.state.chipOrder.includes(d));
+            const merged = missing.length ? [...data.state.chipOrder, ...missing] : data.state.chipOrder;
+            setChipOrder(merged);
+          }
+          if (data.state.tabStages && typeof data.state.tabStages === "object") {
+            setTabStages(data.state.tabStages);
+          }
+        }
+      } finally {
+        uiStateLoadedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Push UI state to server on any change (debounced). Skipped on the very
+  // first set that comes from the GET above.
+  const uiPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!uiStateLoadedRef.current) return;
+    if (skipNextUIStatePushRef.current) {
+      skipNextUIStatePushRef.current = false;
+      return;
+    }
+    if (uiPushTimerRef.current) clearTimeout(uiPushTimerRef.current);
+    uiPushTimerRef.current = setTimeout(() => {
+      fetch(`${API_URL}/api/settings/ui-state`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: { chipOrder, tabStages } }),
+      }).catch((err) => console.error("ui-state push failed:", err));
+    }, 400);
+  }, [chipOrder, tabStages]);
+
   const saveTabStages = (tab: string, list: string[]) => {
     setTabStages((prev) => ({ ...prev, [tab]: list }));
     if (typeof window !== "undefined") {
@@ -1043,8 +1095,18 @@ export default function CRMPage() {
     }
     const trimmed = newName.trim();
 
-    // Update leads in this column to the new name
-    const leadsInColumn = leads.filter((l) => l.stage === oldName);
+    // Bulk-update every lead in the old stage to the new stage on the server,
+    // then optimistically reflect locally. Prior versions only updated local
+    // state, so renames left the DB out of sync and leads "disappeared".
+    try {
+      await fetch(`${API_URL}/api/leads/stage/rename`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from: oldName, to: trimmed }),
+      });
+    } catch (err) {
+      console.error("Failed to rename stage on server:", err);
+    }
     setLeads((prev) =>
       prev.map((l) => (l.stage === oldName ? { ...l, stage: trimmed } : l))
     );
@@ -1075,18 +1137,7 @@ export default function CRMPage() {
       }
     }
 
-    // Update all leads in this column
-    for (const lead of leadsInColumn) {
-      try {
-        await fetch(`${API_URL}/api/leads/${lead.id}/stage`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ stage: trimmed }),
-        });
-      } catch (err) {
-        console.error("Error updating lead stage:", err);
-      }
-    }
+    // (lead.stage rows already updated in bulk above via /api/leads/stage/rename)
   };
 
   useEffect(() => {
