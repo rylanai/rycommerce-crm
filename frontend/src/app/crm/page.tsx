@@ -733,7 +733,7 @@ export default function CRMPage() {
         try { return JSON.parse(saved); } catch {}
       }
     }
-    return ["ALL", "META", "SMS", "PPC", "PPL"];
+    return ["ALL", "META", "SMS", "PPC", "PPL", "LUXURY"];
   });
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
@@ -837,14 +837,14 @@ export default function CRMPage() {
     if (typeof window === "undefined") return {};
     // Bust any tab-column lists saved before the server-data wait fix.
     if (localStorage.getItem("crm_columns_version") !== "v2") {
-      for (const tab of ["META", "SMS", "PPC", "PPL"]) {
+      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY"]) {
         localStorage.removeItem(`crm_columns_${tab}`);
       }
       localStorage.setItem("crm_columns_version", "v2");
       return {};
     }
     const out: Record<string, string[]> = {};
-    for (const tab of ["META", "SMS", "PPC", "PPL"]) {
+    for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY"]) {
       const raw = localStorage.getItem(`crm_columns_${tab}`);
       if (raw) {
         try { out[tab] = JSON.parse(raw); } catch {}
@@ -861,7 +861,7 @@ export default function CRMPage() {
     setTabStages((prev) => {
       const next = { ...prev };
       let changed = false;
-      for (const tab of ["META", "SMS", "PPC", "PPL"]) {
+      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY"]) {
         if (!next[tab]) {
           next[tab] = [...globalStages];
           if (typeof window !== "undefined") {
@@ -892,7 +892,7 @@ export default function CRMPage() {
     setTabStages((prev) => {
       const next = { ...prev };
       let changed = false;
-      for (const tab of ["META", "SMS", "PPC", "PPL"]) {
+      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY"]) {
         const list = next[tab] || [...globalStages];
         const missing = refundStages.filter((s) => !list.includes(s));
         if (missing.length > 0) {
@@ -1211,6 +1211,7 @@ export default function CRMPage() {
     SMS: ["sms"],
     PPC: ["ppc"],
     PPL: ["propertyleads", "motivatedsellers"],
+    LUXURY: ["luxury"],
   };
 
   const filteredLeads =
