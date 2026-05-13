@@ -1434,7 +1434,12 @@ export default function CRMPage() {
   }).length;
   const naAdjustedExcluded = filteredLeads.filter((l) => {
     const s = (l.stage || "").toLowerCase();
-    return s.includes("no answer") || s.includes("refund");
+    return (
+      s.includes("no answer") ||
+      s.includes("not answering") ||
+      s.includes("new lead") ||
+      s.includes("refund")
+    );
   }).length;
   const adjustedCount = filteredLeads.length - refundedCount;
   const naAdjustedCount = filteredLeads.length - naAdjustedExcluded;
