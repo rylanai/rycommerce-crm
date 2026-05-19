@@ -4,7 +4,7 @@ const { Pool } = require('pg');
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 
-const NOTES_TEMPLATE = 'Asking: \nDispo: \nNotes: ';
+const NOTES_TEMPLATE = 'Asking: \nOffered: \nDispo: \nNotes: ';
 
 async function notifySlack(lead) {
   if (!SLACK_WEBHOOK_URL) return;
