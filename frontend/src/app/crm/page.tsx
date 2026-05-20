@@ -309,6 +309,7 @@ function LeadCard({
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
+  const [phoneCopied, setPhoneCopied] = useState(false);
   const [editingValue, setEditingValue] = useState(false);
   const [poweringDown, setPoweringDown] = useState(false);
   const [emailCopied, setEmailCopied] = useState(false);
@@ -433,7 +434,7 @@ function LeadCard({
               )}
             </div>
           </div>
-          <p className="text-xs mb-1">
+          <p className="text-xs mb-1 flex items-center gap-1.5">
             <a
               href={lead.stage === firstColumnName
                 ? `sms:${lead.phone}&body=${encodeURIComponent(`Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${lead.property_address}. 🙂\n\n-Rylan Patterson`)}`
@@ -443,6 +444,28 @@ function LeadCard({
             >
               {lead.phone}
             </a>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(lead.phone);
+                setPhoneCopied(true);
+                setTimeout(() => setPhoneCopied(false), 1500);
+              }}
+              title={phoneCopied ? "Copied!" : "Copy phone number"}
+              className={`inline-flex items-center transition-colors ${phoneCopied ? "text-green-400" : "text-gray-400 hover:text-gray-200"}`}
+            >
+              {phoneCopied ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12.5l4.5 4.5L20 6" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              )}
+            </button>
           </p>
           <p
             className={`text-xs mb-1 truncate cursor-pointer ${addressCopied ? "text-green-400" : "text-gray-400 hover:text-gray-300"}`}
