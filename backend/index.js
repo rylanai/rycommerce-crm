@@ -80,6 +80,15 @@ const initDB = async () => {
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS value NUMERIC;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_type VARCHAR(1);
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS templates (
+        id VARCHAR(64) PRIMARY KEY,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
     console.log('Database initialized');
   } finally {
     client.release();
@@ -513,6 +522,46 @@ app.patch('/api/leads/stage/rename', async (req, res) => {
   } catch (err) {
     console.error('Error renaming stage:', err);
     res.status(500).json({ error: 'Failed to rename stage' });
+  }
+});
+
+// GET /api/templates — return all templates in saved order
+app.get('/api/templates', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, title, body FROM templates ORDER BY position ASC, updated_at ASC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching templates:', err);
+    res.status(500).json({ error: 'Failed to fetch templates' });
+  }
+});
+
+// PUT /api/templates — replace entire template list (array of {id, title, body})
+app.put('/api/templates', async (req, res) => {
+  const list = Array.isArray(req.body) ? req.body : null;
+  if (!list) return res.status(400).json({ error: 'Body must be an array' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM templates');
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i];
+      if (!t || !t.id || typeof t.title !== 'string' || typeof t.body !== 'string') continue;
+      await client.query(
+        'INSERT INTO templates (id, title, body, position, updated_at) VALUES ($1, $2, $3, $4, NOW())',
+        [String(t.id).slice(0, 64), t.title, t.body, i]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ saved: list.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error saving templates:', err);
+    res.status(500).json({ error: 'Failed to save templates' });
+  } finally {
+    client.release();
   }
 });
 

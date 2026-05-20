@@ -38,39 +38,52 @@ const DEFAULTS: Template[] = [
 ];
 
 const STORAGE_KEY = "crm_templates_v1";
-const SEED_VERSION_KEY = "crm_templates_seed_version";
-const SEED_VERSION = "4";
+const MIGRATION_KEY = "crm_templates_migrated_to_db";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-function loadTemplates(): Template[] {
-  if (typeof window === "undefined") return DEFAULTS;
+function readLocalTemplates(): Template[] | null {
+  if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
-    return DEFAULTS;
-  }
-  let saved: Template[] = [];
+  if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) saved = parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
   } catch {}
-  // One-time merge: add any DEFAULTS the user is missing (by id) so new
-  // built-in templates show up without overwriting edits the user has made.
-  const seedVersion = localStorage.getItem(SEED_VERSION_KEY);
-  if (seedVersion !== SEED_VERSION) {
-    const haveIds = new Set(saved.map((t) => t.id));
-    const additions = DEFAULTS.filter((d) => !haveIds.has(d.id));
-    if (additions.length > 0) {
-      saved = [...saved, ...additions];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-    }
-    localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
-  }
-  return saved;
+  return null;
 }
 
-function saveTemplates(list: Template[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+async function fetchTemplatesFromServer(): Promise<Template[]> {
+  const res = await fetch(`${API_URL}/api/templates`);
+  if (!res.ok) throw new Error("Failed to fetch templates");
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function pushTemplatesToServer(list: Template[]): Promise<void> {
+  await fetch(`${API_URL}/api/templates`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(list),
+  });
+}
+
+// Load order: server first. If server is empty, seed from localStorage (one-time
+// migration) or DEFAULTS. Always end with templates persisted server-side.
+async function loadTemplatesAsync(): Promise<Template[]> {
+  try {
+    const server = await fetchTemplatesFromServer();
+    if (server.length > 0) {
+      if (typeof window !== "undefined") localStorage.setItem(MIGRATION_KEY, "1");
+      return server;
+    }
+    const local = readLocalTemplates();
+    const seed = local && local.length > 0 ? local : DEFAULTS;
+    await pushTemplatesToServer(seed);
+    if (typeof window !== "undefined") localStorage.setItem(MIGRATION_KEY, "1");
+    return seed;
+  } catch {
+    return readLocalTemplates() || DEFAULTS;
+  }
 }
 
 export default function TemplatesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -80,7 +93,7 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
-    setTemplates(loadTemplates());
+    loadTemplatesAsync().then(setTemplates);
   }, []);
 
   const filtered = useMemo(() => {
@@ -93,7 +106,12 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
 
   const persist = (list: Template[]) => {
     setTemplates(list);
-    saveTemplates(list);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+    pushTemplatesToServer(list).catch((err) =>
+      console.error("Failed to sync templates to server:", err)
+    );
   };
 
   const copyTemplate = (t: Template) => {
