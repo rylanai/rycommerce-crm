@@ -750,7 +750,7 @@ export default function CRMPage() {
     }
   };
   const [chipOrder, setChipOrder] = useState<string[]>(() => {
-    const defaults = ["ALL", "META", "SMS", "PPC", "PPL", "LUXURY"];
+    const defaults = ["ALL", "META", "SMS", "PPC", "PPL", "LUXURY", "CONNECTIONS"];
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("crm_chip_order");
       if (saved) {
@@ -824,14 +824,14 @@ export default function CRMPage() {
     if (typeof window === "undefined") return {};
     // Bust any tab-column lists saved before the server-data wait fix.
     if (localStorage.getItem("crm_columns_version") !== "v2") {
-      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY"]) {
+      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY", "CONNECTIONS"]) {
         localStorage.removeItem(`crm_columns_${tab}`);
       }
       localStorage.setItem("crm_columns_version", "v2");
       return {};
     }
     const out: Record<string, string[]> = {};
-    for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY"]) {
+    for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY", "CONNECTIONS"]) {
       const raw = localStorage.getItem(`crm_columns_${tab}`);
       if (raw) {
         try { out[tab] = JSON.parse(raw); } catch {}
@@ -848,9 +848,12 @@ export default function CRMPage() {
     setTabStages((prev) => {
       const next = { ...prev };
       let changed = false;
-      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY"]) {
+      const tabSeed: Record<string, string[]> = {
+        CONNECTIONS: ["Private Money Lender", "Developer"],
+      };
+      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY", "CONNECTIONS"]) {
         if (!next[tab]) {
-          next[tab] = [...globalStages];
+          next[tab] = tabSeed[tab] ? [...tabSeed[tab]] : [...globalStages];
           if (typeof window !== "undefined") {
             localStorage.setItem(`crm_columns_${tab}`, JSON.stringify(next[tab]));
           }
@@ -879,7 +882,7 @@ export default function CRMPage() {
     setTabStages((prev) => {
       const next = { ...prev };
       let changed = false;
-      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY"]) {
+      for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY", "CONNECTIONS"]) {
         const list = next[tab] || [...globalStages];
         const missing = refundStages.filter((s) => !list.includes(s));
         if (missing.length > 0) {
@@ -910,7 +913,7 @@ export default function CRMPage() {
         if (data && data.state) {
           skipNextUIStatePushRef.current = true;
           if (Array.isArray(data.state.chipOrder)) {
-            const defaults = ["ALL", "META", "SMS", "PPC", "PPL", "LUXURY"];
+            const defaults = ["ALL", "META", "SMS", "PPC", "PPL", "LUXURY", "CONNECTIONS"];
             const missing = defaults.filter((d) => !data.state.chipOrder.includes(d));
             const merged = missing.length ? [...data.state.chipOrder, ...missing] : data.state.chipOrder;
             setChipOrder(merged);
@@ -1257,6 +1260,7 @@ export default function CRMPage() {
     PPC: ["ppc"],
     PPL: ["propertyleads", "motivatedsellers"],
     LUXURY: ["luxury"],
+    CONNECTIONS: ["connections", "connection"],
   };
 
   const filteredLeads =
