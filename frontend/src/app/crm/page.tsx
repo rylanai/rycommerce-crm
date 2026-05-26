@@ -813,58 +813,9 @@ export default function CRMPage() {
     };
   }, [menuOpen]);
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      // While a card is being dragged, hello-pangea-dnd handles its own
-      // auto-scroll. Mutating scrollLeft from here desyncs Pangea's drop-
-      // target geometry and causes drops onto the wrong column.
-      if (draggingRef.current) {
-        if (scrollInterval.current) {
-          clearInterval(scrollInterval.current);
-          scrollInterval.current = null;
-        }
-        return;
-      }
-      if (!scrollRef.current) return;
-      const container = scrollRef.current;
-      const rect = container.getBoundingClientRect();
-      const edgeZone = 100;
-
-      if (e.clientX > rect.right - edgeZone) {
-        if (!scrollInterval.current) {
-          scrollInterval.current = setInterval(() => {
-            container.scrollLeft += 12;
-          }, 16);
-        }
-      } else if (e.clientX < rect.left + edgeZone) {
-        if (!scrollInterval.current) {
-          scrollInterval.current = setInterval(() => {
-            container.scrollLeft -= 12;
-          }, 16);
-        }
-      } else {
-        if (scrollInterval.current) {
-          clearInterval(scrollInterval.current);
-          scrollInterval.current = null;
-        }
-      }
-    };
-
-    const handleMouseUp = () => {
-      if (scrollInterval.current) {
-        clearInterval(scrollInterval.current);
-        scrollInterval.current = null;
-      }
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      if (scrollInterval.current) clearInterval(scrollInterval.current);
-    };
-  }, []);
+  // Edge-of-screen auto-scroll runs only while a card is being dragged via
+  // hello-pangea-dnd's own logic. We no longer scroll on bare mouse movement —
+  // use the scroll wheel or the bottom scrollbar to pan the board.
 
   const defaultWithCustom = [...DEFAULT_STAGES, ...customStages.map((s) => s.name)];
   const globalStages = columnOrder ? columnOrder : defaultWithCustom;
