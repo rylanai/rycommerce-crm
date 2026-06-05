@@ -1421,6 +1421,10 @@ export default function CRMPage() {
   }).length;
   const adjustedCount = filteredLeads.length - refundedCount;
   const naAdjustedCount = filteredLeads.length - naAdjustedExcluded;
+  // A lead counts as an offer when its notes have text after "Offered:" on that line.
+  const offersCount = filteredLeads.filter((l) =>
+    /^\s*offered\s*:\s*\S/im.test(l.notes || "")
+  ).length;
   const wCount = filteredLeads.filter((l) => l.deal_type === "W").length;
   const nCount = filteredLeads.filter((l) => l.deal_type === "N").length;
   const pipelineValue = filteredLeads.reduce((sum, l) => sum + leadValue(l), 0);
@@ -1570,6 +1574,13 @@ export default function CRMPage() {
               >
                 <span className="font-semibold text-white"><AnimatedNumber value={naAdjustedCount} /></span>
                 <span className="text-gray-500 ml-1">NA adj</span>
+              </span>
+              <span
+                className="px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300"
+                title="Leads with a filled-in Offered: line in notes (counts every column, including Dead)"
+              >
+                <span className="font-semibold text-amber-200"><AnimatedNumber value={offersCount} /></span>
+                <span className="text-amber-500/70 ml-1">offers</span>
               </span>
             </div>
             <div className="flex items-center gap-1.5">
