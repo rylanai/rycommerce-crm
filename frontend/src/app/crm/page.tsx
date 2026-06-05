@@ -1421,9 +1421,10 @@ export default function CRMPage() {
   }).length;
   const adjustedCount = filteredLeads.length - refundedCount;
   const naAdjustedCount = filteredLeads.length - naAdjustedExcluded;
-  // A lead counts as an offer when its notes have text after "Offered:" on that line.
+  // A lead counts as an offer when its notes have text after "Offered:" on that
+  // line — ignoring another label (Asking:/Dispo:/Notes:) merged onto the line.
   const offersCount = filteredLeads.filter((l) =>
-    /^\s*offered\s*:\s*\S/im.test(l.notes || "")
+    /^\s*offered\s*:\s*(?!(?:asking|dispo|notes)\s*:)\S/im.test(l.notes || "")
   ).length;
   const wCount = filteredLeads.filter((l) => l.deal_type === "W").length;
   const nCount = filteredLeads.filter((l) => l.deal_type === "N").length;
