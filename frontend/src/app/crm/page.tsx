@@ -317,7 +317,8 @@ function LeadCard({
   const stageLower = lead.stage.toLowerCase();
   const isDead = stageLower.includes("dead");
   const isRefunded = stageLower.includes("refund");
-  const isDimmed = isDead || isRefunded;
+  const isCanceled = stageLower.includes("cancel");
+  const isDimmed = isDead || isRefunded || isCanceled;
 
   const prevStageRef = useRef(lead.stage);
   useEffect(() => {
