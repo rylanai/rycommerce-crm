@@ -102,7 +102,8 @@ app.post('/api/leads', async (req, res) => {
       first_name, last_name, email, phone, property_address,
       wants_to_sell, timeline, repairs, sell_reason,
       source, utm_campaign, utm_source,
-      sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5
+      sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5,
+      stage, notes
     } = req.body;
 
     // Get the first column name from saved order, fallback to 'New Lead'
@@ -117,6 +118,10 @@ app.post('/api/leads', async (req, res) => {
       }
     } catch (e) { /* use default */ }
 
+    // Honor stage/notes when explicitly provided, else use defaults.
+    const finalStage = (typeof stage === 'string' && stage.trim()) ? stage : defaultStage;
+    const finalNotes = (typeof notes === 'string' && notes.length) ? notes : NOTES_TEMPLATE;
+
     const result = await pool.query(
       `INSERT INTO leads (
         first_name, last_name, email, phone, property_address,
@@ -127,8 +132,8 @@ app.post('/api/leads', async (req, res) => {
       RETURNING *`,
       [first_name, last_name, email, phone, property_address,
        wants_to_sell, timeline, repairs, sell_reason,
-       defaultStage, source || 'meta', utm_campaign, utm_source,
-       sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5, NOTES_TEMPLATE]
+       finalStage, source || 'meta', utm_campaign, utm_source,
+       sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5, finalNotes]
     );
 
     const newLead = result.rows[0];
