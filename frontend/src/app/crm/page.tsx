@@ -1436,6 +1436,53 @@ export default function CRMPage() {
     return created.toDateString() === selected.toDateString();
   }).length;
 
+  // Pull a labeled value out of the notes block ("Asking: / Offered: / Dispo: / Notes:").
+  const notesField = (notes: string | null, label: string): string => {
+    if (!notes) return "";
+    const m = new RegExp(`^\\s*${label}\\s*:\\s*(.*)$`, "im").exec(notes);
+    if (!m) return "";
+    const v = m[1].trim();
+    // Guard against an empty label that swallowed the next label onto its line.
+    if (/^(asking|offered|dispo|notes)\s*:/i.test(v)) return "";
+    return v;
+  };
+
+  const exportCSV = () => {
+    const cols = [
+      "Column", "ID", "First Name", "Last Name", "Phone", "Email",
+      "Property Address", "Source", "Asking", "Offered", "Dispo", "Notes",
+      "Deal Type", "Created",
+    ];
+    const esc = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    // Order by the active tab's column order, then by id within each column.
+    const order = new Map(allStages.map((s, i) => [s, i]));
+    const sorted = [...filteredLeads].sort((a, b) => {
+      const oa = order.has(a.stage) ? (order.get(a.stage) as number) : 999;
+      const ob = order.has(b.stage) ? (order.get(b.stage) as number) : 999;
+      return oa - ob || a.id - b.id;
+    });
+    const rows = sorted.map((l) => [
+      l.stage, l.id, l.first_name, l.last_name, l.phone, l.email,
+      l.property_address, l.source,
+      notesField(l.notes, "Asking"), notesField(l.notes, "Offered"),
+      notesField(l.notes, "Dispo"), notesField(l.notes, "Notes"),
+      l.deal_type || "",
+      l.created_at ? new Date(l.created_at).toLocaleDateString() : "",
+    ]);
+    const csv = [cols, ...rows].map((r) => r.map(esc).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `crm-${sourceFilter.toLowerCase()}-${stamp}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-gray-950 to-slate-900 text-gray-100">
       {/* Top Bar */}
@@ -1611,6 +1658,18 @@ export default function CRMPage() {
                 <line x1="9" y1="17" x2="13" y2="17" />
               </svg>
               Templates
+            </button>
+            <button
+              onClick={exportCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-200 text-xs font-semibold cursor-pointer transition-colors"
+              title={`Export ${sourceFilter} leads to CSV (grouped by column)`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export CSV
             </button>
             <div className="flex items-center gap-1.5">
               <input
