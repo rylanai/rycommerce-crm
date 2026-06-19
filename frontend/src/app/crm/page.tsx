@@ -850,7 +850,7 @@ export default function CRMPage() {
       const next = { ...prev };
       let changed = false;
       const tabSeed: Record<string, string[]> = {
-        CONNECTIONS: ["Private Money Lender", "Developer"],
+        CONNECTIONS: ["Private Money Lender", "Developer", "Cash Buyer 💵"],
       };
       for (const tab of ["META", "SMS", "PPC", "PPL", "LUXURY", "CONNECTIONS"]) {
         if (!next[tab]) {
@@ -896,6 +896,22 @@ export default function CRMPage() {
     });
     localStorage.setItem("crm_refund_migration_v1", "done");
   }, [columnOrder, globalStages]);
+
+  // One-time migration: add the "Cash Buyer 💵" column to the CONNECTIONS tab
+  // for users who already had it seeded with only Private Money Lender + Developer.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("crm_connections_cashbuyer_v1") === "done") return;
+    const col = "Cash Buyer 💵";
+    setTabStages((prev) => {
+      const list = prev.CONNECTIONS;
+      if (!list || list.includes(col)) return prev;
+      const next = { ...prev, CONNECTIONS: [...list, col] };
+      localStorage.setItem(`crm_columns_CONNECTIONS`, JSON.stringify(next.CONNECTIONS));
+      return next;
+    });
+    localStorage.setItem("crm_connections_cashbuyer_v1", "done");
+  }, [tabStages.CONNECTIONS]);
 
   // Server-backed UI state (chipOrder + tabStages). Loads once on mount, then
   // every local change is pushed to the server so all browsers/devices see the
