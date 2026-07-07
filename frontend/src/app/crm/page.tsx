@@ -1847,7 +1847,12 @@ export default function CRMPage() {
         <p className="text-gray-600 text-[11px] tracking-wide">&copy; 2025 Ry Commerce LLC</p>
       </div>
 
-      <TemplatesDrawer open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
+      <TemplatesDrawer
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        activeTab={sourceFilter}
+        tabs={chipOrder}
+      />
 
       {confetti.map((c) => (
         <ConfettiBurst

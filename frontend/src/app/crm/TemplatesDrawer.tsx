@@ -12,7 +12,10 @@ interface Template {
   id: string;
   title: string;
   body: string;
+  category?: string | null;
 }
+
+const GENERAL = "General";
 
 const DEFAULTS: Template[] = [
   { id: "t1", title: "Text 3 — Asking price", body: "Ok great, how much are you looking to get for it?" },
@@ -86,23 +89,55 @@ async function loadTemplatesAsync(): Promise<Template[]> {
   }
 }
 
-export default function TemplatesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function TemplatesDrawer({
+  open,
+  onClose,
+  activeTab = "ALL",
+  tabs = [],
+}: {
+  open: boolean;
+  onClose: () => void;
+  activeTab?: string;
+  tabs?: string[];
+}) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Template | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [viewCategory, setViewCategory] = useState<string>(activeTab);
 
   useEffect(() => {
     loadTemplatesAsync().then(setTemplates);
   }, []);
 
+  // When the drawer opens (or the CRM tab changes), default the view to the
+  // tab the user is currently in so they only see that tab's templates.
+  useEffect(() => {
+    if (open) setViewCategory(activeTab);
+  }, [open, activeTab]);
+
+  // Category options for the view filter + editor: General first, then every
+  // CRM tab (minus ALL). Uncategorized templates live under General.
+  const categoryOptions = useMemo(
+    () => [GENERAL, ...tabs.filter((t) => t !== "ALL")],
+    [tabs]
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return templates;
-    return templates.filter(
-      (t) => t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q)
-    );
-  }, [templates, query]);
+    return templates.filter((t) => {
+      // Category gate. "ALL" view shows everything; otherwise match the
+      // template's category, treating blank as General.
+      if (viewCategory !== "ALL") {
+        const cat = t.category && t.category.trim() ? t.category : GENERAL;
+        if (cat !== viewCategory) return false;
+      }
+      if (!q) return true;
+      return (
+        t.title.toLowerCase().includes(q) || t.body.toLowerCase().includes(q)
+      );
+    });
+  }, [templates, query, viewCategory]);
 
   const persist = (list: Template[]) => {
     setTemplates(list);
@@ -121,7 +156,8 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
   };
 
   const startNew = () => {
-    setEditing({ id: `t-${Date.now()}`, title: "", body: "" });
+    const def = viewCategory && viewCategory !== "ALL" ? viewCategory : GENERAL;
+    setEditing({ id: `t-${Date.now()}`, title: "", body: "", category: def });
   };
 
   const saveEditing = () => {
@@ -145,9 +181,16 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     if (result.source.index === result.destination.index) return;
+    // Indices are into the filtered view, so map back to the full list by id.
+    const movedId = filtered[result.source.index]?.id;
+    const targetId = filtered[result.destination.index]?.id;
+    if (!movedId || !targetId) return;
     const next = [...templates];
-    const [moved] = next.splice(result.source.index, 1);
-    next.splice(result.destination.index, 0, moved);
+    const from = next.findIndex((t) => t.id === movedId);
+    const to = next.findIndex((t) => t.id === targetId);
+    if (from === -1 || to === -1) return;
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
     persist(next);
   };
 
@@ -196,11 +239,44 @@ export default function TemplatesDrawer({ open, onClose }: { open: boolean; onCl
                 className="w-full bg-white/5 text-white text-sm rounded-xl pl-9 pr-3 py-2.5 outline-none border border-white/10 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 placeholder-gray-500 transition"
               />
             </div>
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {["ALL", ...categoryOptions].map((cat) => {
+                const active = viewCategory === cat;
+                const label = cat === "ALL" ? "All" : cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setViewCategory(cat)}
+                    className={`text-[11px] px-2.5 py-1 rounded-full font-semibold cursor-pointer transition ${
+                      active
+                        ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-900/30"
+                        : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
         {editing ? (
           <div className="flex-1 overflow-y-auto p-5 space-y-3">
+            <div>
+              <label className="text-xs uppercase tracking-wider text-gray-500 mb-1.5 block">Tab</label>
+              <select
+                value={editing.category && editing.category.trim() ? editing.category : GENERAL}
+                onChange={(e) => setEditing({ ...editing, category: e.target.value })}
+                className="w-full bg-white/5 text-white text-sm rounded-xl px-3 py-2.5 outline-none border border-white/10 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 transition"
+              >
+                {categoryOptions.map((cat) => (
+                  <option key={cat} value={cat} className="bg-slate-900">
+                    {cat === GENERAL ? "General (all tabs)" : cat}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="text-xs uppercase tracking-wider text-gray-500 mb-1.5 block">Title</label>
               <input

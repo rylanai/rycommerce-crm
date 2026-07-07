@@ -89,6 +89,9 @@ const initDB = async () => {
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
+    await client.query(`
+      ALTER TABLE templates ADD COLUMN IF NOT EXISTS category VARCHAR(64);
+    `);
     console.log('Database initialized');
   } finally {
     client.release();
@@ -534,7 +537,7 @@ app.patch('/api/leads/stage/rename', async (req, res) => {
 app.get('/api/templates', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, title, body FROM templates ORDER BY position ASC, updated_at ASC'
+      'SELECT id, title, body, category FROM templates ORDER BY position ASC, updated_at ASC'
     );
     res.json(result.rows);
   } catch (err) {
@@ -554,9 +557,10 @@ app.put('/api/templates', async (req, res) => {
     for (let i = 0; i < list.length; i++) {
       const t = list[i];
       if (!t || !t.id || typeof t.title !== 'string' || typeof t.body !== 'string') continue;
+      const category = (typeof t.category === 'string' && t.category.trim()) ? t.category.slice(0, 64) : null;
       await client.query(
-        'INSERT INTO templates (id, title, body, position, updated_at) VALUES ($1, $2, $3, $4, NOW())',
-        [String(t.id).slice(0, 64), t.title, t.body, i]
+        'INSERT INTO templates (id, title, body, category, position, updated_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+        [String(t.id).slice(0, 64), t.title, t.body, category, i]
       );
     }
     await client.query('COMMIT');
