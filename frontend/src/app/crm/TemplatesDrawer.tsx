@@ -118,10 +118,20 @@ export default function TemplatesDrawer({
 
   // Category options for the view filter + editor: General first, then every
   // CRM tab (minus ALL). Uncategorized templates live under General.
-  const categoryOptions = useMemo(
-    () => [GENERAL, ...tabs.filter((t) => t !== "ALL")],
-    [tabs]
-  );
+  // EXTRA_SUBCATEGORIES are template-only groupings not tied to a CRM tab;
+  // they're inserted right after their parent tab.
+  const categoryOptions = useMemo(() => {
+    const EXTRA_SUBCATEGORIES: Record<string, string[]> = {
+      WHOLESALE: ["Wholesale V2"],
+    };
+    const base = [GENERAL, ...tabs.filter((t) => t !== "ALL")];
+    const out: string[] = [];
+    for (const c of base) {
+      out.push(c);
+      if (EXTRA_SUBCATEGORIES[c]) out.push(...EXTRA_SUBCATEGORIES[c]);
+    }
+    return out;
+  }, [tabs]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
