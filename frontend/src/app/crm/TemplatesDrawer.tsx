@@ -112,8 +112,13 @@ export default function TemplatesDrawer({
 
   // When the drawer opens (or the CRM tab changes), default the view to the
   // tab the user is currently in so they only see that tab's templates.
+  // Some CRM tabs default to a template sub-category instead (e.g. the
+  // Wholesale CRM tab opens straight to Wholesale V2 templates).
   useEffect(() => {
-    if (open) setViewCategory(activeTab);
+    const DEFAULT_VIEW_OVERRIDE: Record<string, string> = {
+      WHOLESALE: "Wholesale V2",
+    };
+    if (open) setViewCategory(DEFAULT_VIEW_OVERRIDE[activeTab] || activeTab);
   }, [open, activeTab]);
 
   // Category options for the view filter + editor: General first, then every
