@@ -294,6 +294,9 @@ function LeadCard({
   onUpdateStage,
   stages,
   firstColumnName,
+  selectMode,
+  selected,
+  onToggleSelect,
 }: {
   lead: Lead;
   index: number;
@@ -305,6 +308,9 @@ function LeadCard({
   onUpdateStage: (id: number, newStage: string) => void;
   stages: string[];
   firstColumnName: string;
+  selectMode: boolean;
+  selected: boolean;
+  onToggleSelect: (id: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -351,14 +357,16 @@ function LeadCard({
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => (selectMode ? onToggleSelect(lead.id) : setExpanded(!expanded))}
           className={`relative rounded-xl p-3 mb-2 cursor-pointer border [transition:background-color_150ms,border-color_150ms,box-shadow_150ms] ${
             poweringDown
               ? "bg-gradient-to-b from-slate-800 to-slate-900 border-white/10 power-down"
               : isDimmed
               ? "bg-slate-950 border-white/5 opacity-50"
               : "bg-gradient-to-b from-slate-800 to-slate-900 border-white/10 hover:border-white/20 shadow-sm hover:shadow-lg hover:shadow-black/30"
-          } ${snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""}`}
+          } ${snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""} ${
+            selected ? "ring-2 ring-indigo-400 border-indigo-400/60" : ""
+          }`}
         >
           {(lead.source === "propertyleads" || lead.source === "motivatedsellers") && (
             <div
@@ -372,6 +380,19 @@ function LeadCard({
           )}
           <div className="flex justify-between items-start mb-1">
             <span className="font-semibold text-white text-sm flex items-center gap-1.5">
+              {selectMode && (
+                <span
+                  className={`flex-shrink-0 w-4 h-4 rounded border inline-flex items-center justify-center ${
+                    selected ? "bg-indigo-500 border-indigo-500" : "border-white/40 bg-white/5"
+                  }`}
+                >
+                  {selected && (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  )}
+                </span>
+              )}
               {lead.first_name} {lead.last_name}
               {lead.deal_type === "W" && (
                 <span
@@ -776,6 +797,9 @@ export default function CRMPage() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [confetti, setConfetti] = useState<ConfettiSpec[]>([]);
   const lastMouseRef = useRef({ x: 0, y: 0 });
@@ -1320,6 +1344,50 @@ export default function CRMPage() {
     });
   };
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setBulkMoveOpen(false);
+  };
+
+  // Select/deselect every lead currently visible in this tab.
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (prev.size >= filteredLeads.length && filteredLeads.length > 0) return new Set();
+      return new Set(filteredLeads.map((l) => l.id));
+    });
+  };
+
+  // Move all selected leads to one column at once (optimistic + PATCH each).
+  const bulkMoveTo = (newStage: string) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setLeads((prev) =>
+      prev.map((l) => (selectedIds.has(l.id) ? { ...l, stage: newStage } : l))
+    );
+    ids.forEach((id) => {
+      fetch(`${API_URL}/api/leads/${id}/stage`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: newStage }),
+      }).catch((err) => {
+        console.error("Error bulk-updating stage:", err);
+        fetchLeads();
+      });
+    });
+    setSelectedIds(new Set());
+    setBulkMoveOpen(false);
+  };
+
   const onDragStart = () => {
     draggingRef.current = true;
     if (scrollInterval.current) {
@@ -1687,6 +1755,65 @@ export default function CRMPage() {
               </svg>
               Export CSV
             </button>
+            {sourceFilter !== "ALL" && (
+              <button
+                onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                  selectMode
+                    ? "bg-indigo-500/20 border-indigo-400/50 text-indigo-200"
+                    : "bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20 text-gray-200"
+                }`}
+                title="Select multiple leads to move at once"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 11l3 3L22 4" />
+                  <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                </svg>
+                {selectMode ? "Cancel" : "Select"}
+              </button>
+            )}
+            {selectMode && (
+              <>
+                <button
+                  onClick={toggleSelectAll}
+                  className="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  {selectedIds.size >= filteredLeads.length && filteredLeads.length > 0 ? "None" : "All"}
+                </button>
+                <span className="text-xs text-gray-300 font-semibold tabular-nums">
+                  {selectedIds.size} selected
+                </span>
+                <div className="relative">
+                  <button
+                    onClick={() => selectedIds.size > 0 && setBulkMoveOpen((v) => !v)}
+                    disabled={selectedIds.size === 0}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                      selectedIds.size === 0
+                        ? "bg-white/5 border-white/10 text-gray-500 cursor-not-allowed"
+                        : "bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white cursor-pointer"
+                    }`}
+                  >
+                    Move to
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  {bulkMoveOpen && selectedIds.size > 0 && (
+                    <div className="absolute right-0 mt-1 z-50 w-52 max-h-72 overflow-y-auto rounded-xl bg-slate-900 border border-white/10 shadow-2xl shadow-black/50 py-1">
+                      {allStages.map((stage) => (
+                        <button
+                          key={stage}
+                          onClick={() => bulkMoveTo(stage)}
+                          className="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-indigo-500/20 cursor-pointer truncate"
+                        >
+                          {stage}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
             <div className="flex items-center gap-1.5">
               <input
                 type="date"
@@ -1817,6 +1944,9 @@ export default function CRMPage() {
                                     onUpdateStage={handleUpdateStage}
                                     stages={allStages}
                                     firstColumnName={firstColumnName}
+                                    selectMode={selectMode}
+                                    selected={selectedIds.has(lead.id)}
+                                    onToggleSelect={toggleSelect}
                                   />
                                 ))}
                                 {provided.placeholder}
