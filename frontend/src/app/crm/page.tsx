@@ -800,6 +800,8 @@ export default function CRMPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportStages, setExportStages] = useState<Set<string>>(new Set());
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [confetti, setConfetti] = useState<ConfettiSpec[]>([]);
   const lastMouseRef = useRef({ x: 0, y: 0 });
@@ -1531,7 +1533,7 @@ export default function CRMPage() {
     return v;
   };
 
-  const exportCSV = () => {
+  const exportCSV = (onlyStages?: string[]) => {
     const cols = [
       "Column", "ID", "First Name", "Last Name", "Phone", "Email",
       "Property Address", "Source", "Asking", "Offered", "Dispo", "Notes",
@@ -1541,9 +1543,17 @@ export default function CRMPage() {
       const s = v === null || v === undefined ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
+    // Optionally limit to a chosen subset of columns.
+    const stageSet =
+      onlyStages && onlyStages.length && onlyStages.length < allStages.length
+        ? new Set(onlyStages)
+        : null;
+    const base = stageSet
+      ? filteredLeads.filter((l) => stageSet.has(l.stage))
+      : filteredLeads;
     // Order by the active tab's column order, then by id within each column.
     const order = new Map(allStages.map((s, i) => [s, i]));
-    const sorted = [...filteredLeads].sort((a, b) => {
+    const sorted = [...base].sort((a, b) => {
       const oa = order.has(a.stage) ? (order.get(a.stage) as number) : 999;
       const ob = order.has(b.stage) ? (order.get(b.stage) as number) : 999;
       return oa - ob || a.id - b.id;
@@ -1561,10 +1571,37 @@ export default function CRMPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const stamp = new Date().toISOString().slice(0, 10);
+    const slug = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const colPart = stageSet ? "-" + onlyStages!.map(slug).join("_") : "";
     a.href = url;
-    a.download = `crm-${sourceFilter.toLowerCase()}-${stamp}.csv`;
+    a.download = `crm-${sourceFilter.toLowerCase()}${colPart}-${stamp}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const openExportMenu = () => {
+    // Default to all columns checked so a plain open+download exports everything.
+    if (!exportMenuOpen) setExportStages(new Set(allStages));
+    setExportMenuOpen((v) => !v);
+  };
+  const toggleExportStage = (stage: string) => {
+    setExportStages((prev) => {
+      const next = new Set(prev);
+      if (next.has(stage)) next.delete(stage);
+      else next.add(stage);
+      return next;
+    });
+  };
+  const toggleExportAll = () => {
+    setExportStages((prev) =>
+      prev.size >= allStages.length ? new Set() : new Set(allStages)
+    );
+  };
+  const doExport = () => {
+    if (exportStages.size === 0) return;
+    exportCSV(allStages.filter((s) => exportStages.has(s)));
+    setExportMenuOpen(false);
   };
 
   return (
@@ -1743,18 +1780,62 @@ export default function CRMPage() {
               </svg>
               Templates
             </button>
-            <button
-              onClick={exportCSV}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-200 text-xs font-semibold cursor-pointer transition-colors"
-              title={`Export ${sourceFilter} leads to CSV (grouped by column)`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Export CSV
-            </button>
+            <div className="relative">
+              <button
+                onClick={sourceFilter === "ALL" ? () => exportCSV() : openExportMenu}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-200 text-xs font-semibold cursor-pointer transition-colors"
+                title={sourceFilter === "ALL" ? "Export all leads to CSV" : `Export ${sourceFilter} columns to CSV`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export CSV
+                {sourceFilter !== "ALL" && (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                )}
+              </button>
+              {exportMenuOpen && sourceFilter !== "ALL" && (
+                <div className="absolute right-0 mt-1 z-50 w-64 rounded-xl bg-slate-900 border border-white/10 shadow-2xl shadow-black/50 p-2">
+                  <div className="flex items-center justify-between px-1 pb-2">
+                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Columns to export</span>
+                    <button
+                      onClick={toggleExportAll}
+                      className="text-[11px] font-semibold text-indigo-300 hover:text-indigo-200 cursor-pointer"
+                    >
+                      {exportStages.size >= allStages.length ? "None" : "All"}
+                    </button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-0.5">
+                    {allStages.map((stage) => (
+                      <label
+                        key={stage}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer text-xs text-gray-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={exportStages.has(stage)}
+                          onChange={() => toggleExportStage(stage)}
+                          className="accent-indigo-500 cursor-pointer"
+                        />
+                        <span className="truncate">{stage}</span>
+                        <span className="ml-auto text-gray-500 tabular-nums">{getLeadsByStage(stage).length}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    onClick={doExport}
+                    disabled={exportStages.size === 0}
+                    className="mt-2 w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    Download CSV ({exportStages.size} {exportStages.size === 1 ? "column" : "columns"})
+                  </button>
+                </div>
+              )}
+            </div>
             {sourceFilter !== "ALL" && (
               <button
                 onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
