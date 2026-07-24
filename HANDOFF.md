@@ -49,3 +49,7 @@ same flag.
 - CRM POST responses have literal newlines in `notes` → parse with
   `json.loads(..., strict=False)`.
 - Dashboard password: `rycommerce2024`.
+
+## Auto-texter source (for context / migration)
+The scripts now live in the repo at `autotexter/` (stl_autotext.py, stl, plist, README.md).
+Read `autotexter/README.md` for how it works and how to move it to another Mac.

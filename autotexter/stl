@@ -1,0 +1,28 @@
+#!/bin/bash
+# Control the Speed-to-Lead auto-texter.
+#   ~/stl on|off       -> flip the on/off flag (same switch as the CRM PPL "Auto-text" toggle)
+#   ~/stl pause|start  -> hard stop/start the whole background process (launchd)
+#   ~/stl status       -> show process + flag + recent log
+LABEL=com.rylan.stlautotext
+PLIST="$HOME/Library/LaunchAgents/com.rylan.stlautotext.plist"
+API="https://backend-production-da82.up.railway.app"
+UID_=$(id -u)
+case "$1" in
+  on|enable)
+    curl -s -X PUT "$API/api/settings/autotext" -H "Content-Type: application/json" -d '{"enabled":true}' >/dev/null \
+      && echo "▶️  auto-text flag ON (sends resume)" ;;
+  off|disable)
+    curl -s -X PUT "$API/api/settings/autotext" -H "Content-Type: application/json" -d '{"enabled":false}' >/dev/null \
+      && echo "⏸  auto-text flag OFF (paused — process keeps running)" ;;
+  pause|stop)
+    launchctl bootout "gui/$UID_/$LABEL" 2>/dev/null && echo "⏹  process STOPPED (launchd)" || echo "already stopped" ;;
+  start)
+    launchctl bootstrap "gui/$UID_" "$PLIST" 2>/dev/null && echo "▶️  process STARTED (launchd)" || echo "already running" ;;
+  status|"")
+    if launchctl list | grep -q "$LABEL"; then echo "process: ✅ RUNNING"; else echo "process: ⏹  STOPPED"; fi
+    FLAG=$(curl -s "$API/api/settings/autotext" | grep -o '"enabled":[a-z]*' | cut -d: -f2)
+    echo "flag:    $([ "$FLAG" = "true" ] && echo '✅ ON (sending)' || echo '⏸  OFF (paused)')"
+    echo "--- last log lines ---"; tail -4 "$HOME/stl_autotext.log" 2>/dev/null ;;
+  *)
+    echo "usage: ~/stl {on|off|pause|start|status}" ;;
+esac
