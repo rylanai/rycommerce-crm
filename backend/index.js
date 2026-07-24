@@ -243,6 +243,91 @@ app.post('/api/leads/propertyleads', async (req, res) => {
   }
 });
 
+// POST /api/leads/speedtolead — webhook ingest from Speed to Lead.
+// Auth: token must match SPEEDTOLEAD_TOKEN (falls back to the baked-in key).
+// Token accepted via ?token=, x-api-key header, Authorization: Bearer, or body.
+app.post('/api/leads/speedtolead', async (req, res) => {
+  try {
+    const expectedToken = process.env.SPEEDTOLEAD_TOKEN ||
+      'a97570a95ddb7d468862c01b8ac4753571a7d8732d71fd06feae06e10719e628';
+    const auth = req.headers['authorization'] || '';
+    const provided = req.query.token
+      || req.headers['x-api-key']
+      || (auth.startsWith('Bearer ') ? auth.slice(7) : '')
+      || (req.body && (req.body.token || req.body.api_key));
+    if (provided !== expectedToken) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    console.log('[speedtolead] content-type:', req.headers['content-type']);
+    console.log('[speedtolead] query:', JSON.stringify(req.query));
+    console.log('[speedtolead] body:', JSON.stringify(req.body));
+
+    // Merge body + query so we catch leads delivered as POST body OR query params.
+    const p = { ...(req.query || {}), ...(req.body || {}) };
+    const pick = (...keys) => {
+      for (const k of keys) {
+        if (p[k] !== undefined && p[k] !== null && p[k] !== '') return p[k];
+      }
+      return '';
+    };
+
+    let first_name = pick('First_Name', 'First Name', 'first_name', 'firstName', 'fname', 'first');
+    let last_name = pick('Last_Name', 'Last Name', 'last_name', 'lastName', 'lname', 'last');
+    if (!first_name && !last_name) {
+      const full = pick('name', 'full_name', 'fullName', 'contact_name');
+      if (full) {
+        const parts = String(full).trim().split(/\s+/);
+        first_name = parts[0] || '';
+        last_name = parts.slice(1).join(' ');
+      }
+    }
+
+    const email = pick('Email', 'email', 'email_address', 'emailAddress');
+    const phone = pick('Phone', 'Primary_Phone', 'Primary Phone', 'phone', 'phone_number', 'phoneNumber', 'phone1', 'mobile', 'cell');
+
+    const street = pick('Property_Address', 'Property Address', 'property_address', 'propertyAddress', 'address', 'street_address', 'streetAddress', 'street', 'address1', 'address_line_1');
+    const city = pick('City', 'city');
+    const state = pick('State', 'state', 'region');
+    const zip = pick('Zip', 'zip', 'zipcode', 'zip_code', 'postal_code', 'postalCode');
+    let property_address = [street, city, state, zip].filter(Boolean).join(', ');
+    if (!property_address) property_address = street || '';
+
+    const timeline = pick('Time_Frame_To_Sell', 'timeline', 'time_frame', 'timeframe');
+    const repairs = pick('Repairs', 'repairs', 'condition', 'property_condition');
+    const sell_reason = pick('Reason_for_Selling', 'sell_reason', 'reason', 'motivation', 'why_selling');
+    const wants_to_sell = pick('wants_to_sell', 'interested') || 'yes';
+
+    let defaultStage = 'New Lead';
+    try {
+      const orderResult = await pool.query("SELECT value FROM settings WHERE key = 'column_order'");
+      if (orderResult.rows.length > 0) {
+        const order = JSON.parse(orderResult.rows[0].value);
+        if (order && order.length > 0) defaultStage = order[0];
+      }
+    } catch (e) { /* use default */ }
+
+    const result = await pool.query(
+      `INSERT INTO leads (
+        first_name, last_name, email, phone, property_address,
+        wants_to_sell, timeline, repairs, sell_reason,
+        stage, source, notes
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING *`,
+      [first_name, last_name, email, phone, property_address,
+       wants_to_sell, timeline, repairs, sell_reason,
+       defaultStage, 'speedtolead', NOTES_TEMPLATE]
+    );
+
+    const newLead = result.rows[0];
+    res.status(201).json(newLead);
+    notifySlack(newLead);
+  } catch (err) {
+    console.error('Error creating speedtolead lead:', err);
+    res.status(500).json({ error: 'Failed to create lead' });
+  }
+});
+
 // POST /api/leads/motivatedsellers — webhook ingest from MotivatedSellers.com
 app.post('/api/leads/motivatedsellers', async (req, res) => {
   try {

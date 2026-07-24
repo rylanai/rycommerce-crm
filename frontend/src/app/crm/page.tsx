@@ -37,6 +37,7 @@ const SOURCE_COLORS: Record<string, string> = {
   ppc: "#f97316",
   propertyleads: "#a855f7",
   motivatedsellers: "#ec4899",
+  speedtolead: "#ef4444",
 };
 
 interface Lead {
@@ -368,14 +369,16 @@ function LeadCard({
             selected ? "ring-2 ring-indigo-400 border-indigo-400/60" : ""
           }`}
         >
-          {(lead.source === "propertyleads" || lead.source === "motivatedsellers") && (
+          {(lead.source === "propertyleads" || lead.source === "motivatedsellers" || lead.source === "speedtolead") && (
             <div
               className="absolute -top-1 left-3 w-2.5 h-4 shadow-md pointer-events-none"
               style={{
-                backgroundColor: lead.source === "propertyleads" ? "#a855f7" : "#f97316",
+                backgroundColor: lead.source === "propertyleads" ? "#a855f7"
+                  : lead.source === "speedtolead" ? "#ef4444" : "#f97316",
                 clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 70%, 0 100%)",
               }}
-              title={lead.source === "propertyleads" ? "PropertyLeads" : "MotivatedSellers"}
+              title={lead.source === "propertyleads" ? "PropertyLeads"
+                : lead.source === "speedtolead" ? "Speed to Lead" : "MotivatedSellers"}
             />
           )}
           <div className="flex justify-between items-start mb-1">
@@ -1301,7 +1304,7 @@ export default function CRMPage() {
     META: ["meta"],
     SMS: ["sms"],
     PPC: ["ppc"],
-    PPL: ["propertyleads", "motivatedsellers"],
+    PPL: ["propertyleads", "motivatedsellers", "speedtolead"],
     LUXURY: ["luxury"],
     CONNECTIONS: ["connections", "connection"],
   };
