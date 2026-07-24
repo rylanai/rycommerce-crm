@@ -290,7 +290,16 @@ app.post('/api/leads/speedtolead', async (req, res) => {
     const city = pick('City', 'city');
     const state = pick('State', 'state', 'region');
     const zip = pick('Zip', 'zip', 'zipcode', 'zip_code', 'postal_code', 'postalCode');
-    let property_address = [street, city, state, zip].filter(Boolean).join(', ');
+    // Speed to Lead sends the FULL address in `street` AND redundant city/state/zip.
+    // If `street` already looks complete (contains a comma → "street, city, ST zip"),
+    // use it as-is; otherwise assemble from the parts. Prevents the duplicated
+    // "123 Main St, City, ST 00000, city, ST, 00000" that was showing in texts.
+    let property_address;
+    if (street && String(street).includes(',')) {
+      property_address = String(street).trim();
+    } else {
+      property_address = [street, city, state, zip].filter(Boolean).join(', ');
+    }
     if (!property_address) property_address = street || '';
 
     const timeline = pick('Time_Frame_To_Sell', 'timeline', 'time_frame', 'timeframe');
