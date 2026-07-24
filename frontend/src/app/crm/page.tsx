@@ -799,6 +799,23 @@ export default function CRMPage() {
   const [columnOrder, setColumnOrder] = useState<string[] | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [autotextOn, setAutotextOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (sourceFilter !== "PPL") return;
+    fetch(`${API_URL}/api/settings/autotext`)
+      .then((r) => r.json())
+      .then((d) => setAutotextOn(d.enabled !== false))
+      .catch(() => {});
+  }, [sourceFilter]);
+  const toggleAutotext = () => {
+    const next = !autotextOn;
+    setAutotextOn(next);
+    fetch(`${API_URL}/api/settings/autotext`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: next }),
+    }).catch(() => setAutotextOn(!next));
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -1770,6 +1787,20 @@ export default function CRMPage() {
               </span>
             )}
             <span className="hidden sm:block w-px h-6 bg-white/10" />
+            {sourceFilter === "PPL" && (
+              <button
+                onClick={toggleAutotext}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                  autotextOn
+                    ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/30"
+                    : "bg-white/5 border-white/10 hover:border-white/20 text-gray-300 hover:bg-white/10"
+                }`}
+                title={autotextOn ? "Auto-texter is ON — click to pause" : "Auto-texter is OFF — click to start"}
+              >
+                <span className={`w-2 h-2 rounded-full ${autotextOn ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-gray-500"}`} />
+                Auto-text {autotextOn === null ? "…" : autotextOn ? "ON" : "OFF"}
+              </button>
+            )}
             <button
               onClick={() => setTemplatesOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-200 text-xs font-semibold cursor-pointer transition-colors"

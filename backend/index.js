@@ -602,6 +602,34 @@ app.put('/api/settings/ui-state', async (req, res) => {
   }
 });
 
+// GET /api/settings/autotext — is the Speed-to-Lead auto-texter enabled? (default true)
+app.get('/api/settings/autotext', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'autotext'");
+    const enabled = result.rows.length === 0 ? true : JSON.parse(result.rows[0].value).enabled !== false;
+    res.json({ enabled });
+  } catch (err) {
+    console.error('Error fetching autotext:', err);
+    res.status(500).json({ error: 'Failed to fetch autotext' });
+  }
+});
+
+// PUT /api/settings/autotext — turn the auto-texter on/off  { enabled: bool }
+app.put('/api/settings/autotext', async (req, res) => {
+  try {
+    const enabled = req.body.enabled !== false;
+    await pool.query(
+      `INSERT INTO settings (key, value) VALUES ('autotext', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [JSON.stringify({ enabled })]
+    );
+    res.json({ enabled });
+  } catch (err) {
+    console.error('Error saving autotext:', err);
+    res.status(500).json({ error: 'Failed to save autotext' });
+  }
+});
+
 // PATCH /api/leads/stage/rename — bulk-update every lead in `from` stage to `to` stage
 app.patch('/api/leads/stage/rename', async (req, res) => {
   try {
