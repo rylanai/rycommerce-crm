@@ -9,6 +9,11 @@ copies on the Air are `~/stl_autotext.py`, `~/stl`, and
 `~/Library/LaunchAgents/com.rylan.stlautotext.plist`.
 
 ## What it does (per new `speedtolead` lead in the PPL tab)
+0. **3-minute freshness gate** (`MAX_LEAD_AGE`): a lead only enters the sequence if its CRM
+   row is <3 min old the first time the script sees it. Anything older is logged and marked
+   done, so a lead a human is already texting can never get the initial reach-out. The gate
+   is applied at **registration**, not at send time — an after-hours lead still gets held
+   until the 9–5 window opens and then texted.
 1. Only **9am–5pm in the lead's local time** (from address state / phone area code).
 2. +15s after the lead is added → send Text 1 (reach-out).
 3. +5s → send Text 2 ("Is {address} the correct address?"). (steps 2–3 = the "double text")

@@ -17,7 +17,9 @@ macOS 26 removed silent AppleScript sending, so sends drive the UI: open the pre
 sms: link then press Return. Needs Accessibility (send) + Full Disk Access (read replies).
 
 SAFE: DRY-RUN unless STL_LIVE=1. First run baselines existing speedtolead leads as done
-so it never blasts the backlog.
+so it never blasts the backlog. A lead may only ENTER the sequence if its CRM row is less
+than MAX_LEAD_AGE (3 min) old when we first see it, so a pre-existing lead that a human is
+already texting can never get the initial reach-out.
   Dry:   python3 ~/stl_autotext.py       Live: STL_LIVE=1 python3 ~/stl_autotext.py
   Test:  python3 ~/stl_autotext.py --test "+16028481208"
 """
@@ -31,6 +33,7 @@ SOURCE       = "speedtolead"
 DELAY_FIRST  = 15          # seconds after lead added -> TEXT1
 DELAY_SECOND = 5           # seconds after TEXT1 -> TEXT2
 POLL_SECONDS = 10
+MAX_LEAD_AGE = 180         # a lead may only ENTER the sequence if its CRM row is <3 min old
 REPLY_TIMEOUT_H = 48       # stop watching a lead for a reply after this long
 MOVE_TO      = "Gathering Info ✍️"
 MOVE_FROM    = {"Asking Price", "Not Answering 😑"}
@@ -287,13 +290,21 @@ def main():
             enabled = autotext_enabled()
             leads = fetch_leads()
             by_id = {l["id"]: l for l in leads}
-            # register new eligible leads (marked done/skipped if the toggle is OFF)
+            # register new eligible leads (marked done/skipped if the toggle is OFF, or if the
+            # lead is already older than MAX_LEAD_AGE — an existing lead that only just showed
+            # up to us is one a human may already be texting, so it never enters the sequence)
             for l in leads:
                 if (l.get("source") or "") == SOURCE and l["id"] not in state:
-                    state[l["id"]] = {"status": "pending" if enabled else "done", "phone": norm_phone(l.get("phone")),
-                                      "created": parse_created(l.get("created_at")), "double_sent": None}
-                    log(f"NEW lead #{l['id']} {l.get('first_name','')} {norm_phone(l.get('phone'))}"
-                        + ("" if enabled else "  [SKIPPED — auto-text OFF]"))
+                    created = parse_created(l.get("created_at"))
+                    age = time.time() - created
+                    stale = age > MAX_LEAD_AGE
+                    state[l["id"]] = {"status": "pending" if (enabled and not stale) else "done",
+                                      "phone": norm_phone(l.get("phone")),
+                                      "created": created, "double_sent": None}
+                    reason = ("" if enabled else "  [SKIPPED — auto-text OFF]") or ""
+                    if stale:
+                        reason = f"  [SKIPPED — {int(age//60)}m{int(age%60)}s old, >{MAX_LEAD_AGE//60}m limit]"
+                    log(f"NEW lead #{l['id']} {l.get('first_name','')} {norm_phone(l.get('phone'))}" + reason)
                     save_state(state)
             if not enabled:
                 time.sleep(POLL_SECONDS); continue   # toggle OFF: hold everything, no sends
