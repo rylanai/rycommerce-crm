@@ -325,7 +325,7 @@ app.post('/api/leads/speedtolead', async (req, res) => {
       RETURNING *`,
       [first_name, last_name, email, phone, property_address,
        wants_to_sell, timeline, repairs, sell_reason,
-       defaultStage, 'speedtolead', NOTES_TEMPLATE]
+       defaultStage, 'pplv2', NOTES_TEMPLATE]
     );
 
     const newLead = result.rows[0];

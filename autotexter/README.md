@@ -8,7 +8,7 @@ These files are committed here only so both machines share the source/context. T
 copies on the Air are `~/stl_autotext.py`, `~/stl`, and
 `~/Library/LaunchAgents/com.rylan.stlautotext.plist`.
 
-## What it does (per new `speedtolead` lead in the PPL tab)
+## What it does (per new Speed-to-Lead lead — source `pplv2` — in the PPL V2 tab)
 0. **3-minute freshness gate** (`MAX_LEAD_AGE`): a lead only enters the sequence if its CRM
    row is <3 min old the first time the script sees it. Anything older is logged and marked
    done, so a lead a human is already texting can never get the initial reach-out. The gate

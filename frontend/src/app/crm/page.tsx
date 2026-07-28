@@ -801,7 +801,7 @@ export default function CRMPage() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [autotextOn, setAutotextOn] = useState<boolean | null>(null);
   useEffect(() => {
-    if (sourceFilter !== "PPL") return;
+    if (sourceFilter !== "PPL V2") return;
     fetch(`${API_URL}/api/settings/autotext`)
       .then((r) => r.json())
       .then((d) => setAutotextOn(d.enabled !== false))
@@ -1321,8 +1321,8 @@ export default function CRMPage() {
     META: ["meta"],
     SMS: ["sms"],
     PPC: ["ppc"],
-    PPL: ["propertyleads", "motivatedsellers", "speedtolead"],
-    "PPL V2": ["pplv2"],
+    PPL: ["propertyleads", "motivatedsellers"],
+    "PPL V2": ["pplv2", "speedtolead"],
     LUXURY: ["luxury"],
     CONNECTIONS: ["connections", "connection"],
   };
@@ -1788,7 +1788,7 @@ export default function CRMPage() {
               </span>
             )}
             <span className="hidden sm:block w-px h-6 bg-white/10" />
-            {sourceFilter === "PPL" && (
+            {sourceFilter === "PPL V2" && (
               <button
                 onClick={toggleAutotext}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${

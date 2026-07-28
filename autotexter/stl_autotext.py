@@ -2,7 +2,7 @@
 """
 Speed-to-Lead auto-texter + keyword auto-responder (macOS Messages, real number).
 
-Sequence per NEW speedtolead lead in the PPL tab:
+Sequence per NEW Speed-to-Lead lead (source "pplv2") in the PPL V2 tab:
   1. wait 15s after the lead is added, then send TEXT1 (reach-out)
   2. wait 5s, then send TEXT2 ("Is <address> the correct address?")   <- the "double text"
   3. watch for the lead's FIRST reply (directly after the double text):
@@ -16,7 +16,7 @@ The responder fires ONLY on that first reply, once, and never on opt-out/negativ
 macOS 26 removed silent AppleScript sending, so sends drive the UI: open the pre-filled
 sms: link then press Return. Needs Accessibility (send) + Full Disk Access (read replies).
 
-SAFE: DRY-RUN unless STL_LIVE=1. First run baselines existing speedtolead leads as done
+SAFE: DRY-RUN unless STL_LIVE=1. First run baselines existing pplv2 leads as done
 so it never blasts the backlog. A lead may only ENTER the sequence if its CRM row is less
 than MAX_LEAD_AGE (3 min) old when we first see it, so a pre-existing lead that a human is
 already texting can never get the initial reach-out.
@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 
 API_BASE     = "https://backend-production-da82.up.railway.app"
 LEADS_URL    = f"{API_BASE}/api/leads"
-SOURCE       = "speedtolead"
+SOURCE       = "pplv2"          # Speed-to-Lead leads land in the CRM PPL V2 tab
 DELAY_FIRST  = 15          # seconds after lead added -> TEXT1
 DELAY_SECOND = 5           # seconds after TEXT1 -> TEXT2
 POLL_SECONDS = 10
