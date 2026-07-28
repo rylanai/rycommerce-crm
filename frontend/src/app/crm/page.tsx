@@ -67,6 +67,17 @@ interface Lead {
   offer_price: string | number | null;
   value: string | number | null;
   deal_type: "W" | "N" | null;
+  extra_data?: Record<string, string> | null;
+}
+
+// Webhook keys arrive as raw form labels ("Time_Frame_To_Sell", "sellerMotivation").
+// Turn them into something readable without hardcoding a map per field.
+function prettyLabel(key: string): string {
+  const spaced = key
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 function parseMoney(v: string | number | null | undefined): number {
@@ -684,6 +695,19 @@ function LeadCard({
                 <span className="text-gray-500">Sell Reason:</span>{" "}
                 {lead.sell_reason}
               </p>
+              {lead.extra_data && Object.keys(lead.extra_data).length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-700/60">
+                  <p className="text-gray-500 mb-1 font-semibold">Lead Details</p>
+                  <div className="space-y-0.5">
+                    {Object.entries(lead.extra_data).map(([k, v]) => (
+                      <p key={k} className="flex gap-2">
+                        <span className="text-gray-500 shrink-0">{prettyLabel(k)}:</span>
+                        <span className="text-gray-200 break-words">{v}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
               <p>
                 <span className="text-gray-500">Source:</span>{" "}
                 {lead.source?.toUpperCase()}

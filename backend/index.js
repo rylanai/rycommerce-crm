@@ -79,6 +79,7 @@ const initDB = async () => {
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS offer_price NUMERIC;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS value NUMERIC;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_type VARCHAR(1);
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS extra_data JSONB;
     `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS templates (
@@ -329,16 +330,37 @@ app.post('/api/leads/speedtolead', async (req, res) => {
     } catch (e) { /* use default */ }
     console.log('[speedtolead] landing stage:', JSON.stringify(defaultStage));
 
+    // Keep EVERY question/answer Speed to Lead sends, not just the mapped columns,
+    // so the lead card can show the full questionnaire. Secrets and fields already
+    // promoted to real columns are stripped so the card isn't a wall of duplicates.
+    const SKIP = new Set(['token', 'api_key', 'apikey', 'x-api-key']);
+    const MAPPED = new Set([
+      'First_Name','First Name','first_name','firstName','fname','first',
+      'Last_Name','Last Name','last_name','lastName','lname','last',
+      'name','full_name','fullName','contact_name',
+      'Email','email','email_address','emailAddress',
+      'Phone','Primary_Phone','Primary Phone','phone','phone_number','phoneNumber','phone1','mobile','cell',
+      'Property_Address','Property Address','property_address','propertyAddress','address',
+      'street_address','streetAddress','street','address1','address_line_1',
+    ]);
+    const extra = {};
+    for (const [k, v] of Object.entries(p)) {
+      if (SKIP.has(String(k).toLowerCase()) || MAPPED.has(k)) continue;
+      if (v === undefined || v === null || v === '') continue;
+      extra[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    }
+    const extra_data = Object.keys(extra).length ? JSON.stringify(extra) : null;
+
     const result = await pool.query(
       `INSERT INTO leads (
         first_name, last_name, email, phone, property_address,
         wants_to_sell, timeline, repairs, sell_reason,
-        stage, source, notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        stage, source, notes, extra_data
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING *`,
       [first_name, last_name, email, phone, property_address,
        wants_to_sell, timeline, repairs, sell_reason,
-       defaultStage, 'pplv2', NOTES_TEMPLATE]
+       defaultStage, 'pplv2', NOTES_TEMPLATE, extra_data]
     );
 
     const newLead = result.rows[0];
