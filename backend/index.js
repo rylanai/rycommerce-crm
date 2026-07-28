@@ -307,14 +307,27 @@ app.post('/api/leads/speedtolead', async (req, res) => {
     const sell_reason = pick('Reason_for_Selling', 'sell_reason', 'reason', 'motivation', 'why_selling');
     const wants_to_sell = pick('wants_to_sell', 'interested') || 'yes';
 
+    // Land the lead in the FIRST column of the PPL V2 tab specifically — that's the tab
+    // these leads live in, and its column list is edited independently of the global
+    // column_order. Deleting a column there must not orphan new leads into a stage the
+    // tab no longer renders. Falls back to the global order, then a literal.
     let defaultStage = 'New Lead';
     try {
-      const orderResult = await pool.query("SELECT value FROM settings WHERE key = 'column_order'");
-      if (orderResult.rows.length > 0) {
-        const order = JSON.parse(orderResult.rows[0].value);
-        if (order && order.length > 0) defaultStage = order[0];
+      const uiResult = await pool.query("SELECT value FROM settings WHERE key = 'ui_state'");
+      const tabStages = uiResult.rows.length
+        ? (JSON.parse(uiResult.rows[0].value) || {}).tabStages
+        : null;
+      const v2 = tabStages && tabStages['PPL V2'];
+      if (Array.isArray(v2) && v2.length > 0) defaultStage = v2[0];
+      else {
+        const orderResult = await pool.query("SELECT value FROM settings WHERE key = 'column_order'");
+        if (orderResult.rows.length > 0) {
+          const order = JSON.parse(orderResult.rows[0].value);
+          if (order && order.length > 0) defaultStage = order[0];
+        }
       }
     } catch (e) { /* use default */ }
+    console.log('[speedtolead] landing stage:', JSON.stringify(defaultStage));
 
     const result = await pool.query(
       `INSERT INTO leads (
