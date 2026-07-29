@@ -351,6 +351,19 @@ function LeadCard({
       prevStageRef.current = lead.stage;
     }
   }, [lead.stage]);
+  // Refund watch: a lead that is STILL sitting in "Not Answering" 7+ days after it
+  // was added is unworkable — glow it red to prompt a refund request. It may have
+  // bounced through other columns in between; all that matters is where it is now.
+  // Only applies from lead 596 (Gary Andrews, 2026-07-29) onward — older leads
+  // predate the policy and shouldn't all light up at once.
+  const REFUND_WATCH_FROM_ID = 596;
+  const REFUND_AFTER_DAYS = 7;
+  const refundOverdue =
+    lead.id >= REFUND_WATCH_FROM_ID &&
+    stageLower.includes("not answering") &&
+    new Date().getTime() - new Date(lead.created_at).getTime() >
+      REFUND_AFTER_DAYS * 24 * 60 * 60 * 1000;
+
   const needsFollowUp = !lead.last_followed_up ||
     (new Date().getTime() - new Date(lead.last_followed_up).getTime()) > 15 * 60 * 60 * 1000;
 
@@ -376,20 +389,23 @@ function LeadCard({
               : isDimmed
               ? "bg-slate-950 border-white/5 opacity-50"
               : "bg-gradient-to-b from-slate-800 to-slate-900 border-white/10 hover:border-white/20 shadow-sm hover:shadow-lg hover:shadow-black/30"
-          } ${snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""} ${
-            selected ? "ring-2 ring-indigo-400 border-indigo-400/60" : ""
-          }`}
+          } ${refundOverdue && !isDimmed ? "refund-glow" : ""} ${
+            snapshot.isDragging ? "ring-1 ring-indigo-400/50 shadow-2xl shadow-indigo-900/40" : ""
+          } ${selected ? "ring-2 ring-indigo-400 border-indigo-400/60" : ""}`}
+          title={refundOverdue && !isDimmed
+            ? `In Not Answering for ${REFUND_AFTER_DAYS}+ days — submit a refund request`
+            : undefined}
         >
-          {(lead.source === "propertyleads" || lead.source === "motivatedsellers" || lead.source === "speedtolead") && (
+          {(lead.source === "propertyleads" || lead.source === "motivatedsellers" || lead.source === "speedtolead" || lead.source === "pplv2") && (
             <div
               className="absolute -top-1 left-3 w-2.5 h-4 shadow-md pointer-events-none"
               style={{
                 backgroundColor: lead.source === "propertyleads" ? "#a855f7"
-                  : lead.source === "speedtolead" ? "#ef4444" : "#f97316",
+                  : (lead.source === "speedtolead" || lead.source === "pplv2") ? "#ef4444" : "#f97316",
                 clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 70%, 0 100%)",
               }}
               title={lead.source === "propertyleads" ? "PropertyLeads"
-                : lead.source === "speedtolead" ? "Speed to Lead" : "MotivatedSellers"}
+                : (lead.source === "speedtolead" || lead.source === "pplv2") ? "Speed to Lead" : "MotivatedSellers"}
             />
           )}
           <div className="flex justify-between items-start mb-1">

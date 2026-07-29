@@ -105,3 +105,26 @@ input[type="number"]:focus::-webkit-outer-spin-button {
   100% { transform: translateY(0); }
 }
 .number-bump { animation: number-bump 250ms ease-out; display: inline-block; }
+
+/* Refund-overdue lead — still sitting in "Not Answering" 7+ days after it was
+   added. Slow red breathing glow so it reads as "submit a refund request"
+   without being mistaken for the drag/select rings. */
+@keyframes refund-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.55), 0 0 10px 1px rgba(239, 68, 68, 0.30);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.95), 0 0 22px 5px rgba(239, 68, 68, 0.65);
+  }
+}
+.refund-glow {
+  animation: refund-glow 2s ease-in-out infinite;
+  border-color: rgba(248, 113, 113, 0.75) !important;
+  will-change: box-shadow;
+}
+@media (prefers-reduced-motion: reduce) {
+  .refund-glow {
+    animation: none;
+    box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.9), 0 0 16px 3px rgba(239, 68, 68, 0.5);
+  }
+}
