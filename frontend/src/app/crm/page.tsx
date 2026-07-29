@@ -351,13 +351,13 @@ function LeadCard({
       prevStageRef.current = lead.stage;
     }
   }, [lead.stage]);
-  // Refund watch: a lead that is STILL sitting in "Not Answering" 7+ days after it
+  // Refund watch: a lead that is STILL sitting in "Not Answering" 10+ days after it
   // was added is unworkable — glow it red to prompt a refund request. It may have
   // bounced through other columns in between; all that matters is where it is now.
   // Only applies from lead 596 (Gary Andrews, 2026-07-29) onward — older leads
   // predate the policy and shouldn't all light up at once.
   const REFUND_WATCH_FROM_ID = 596;
-  const REFUND_AFTER_DAYS = 7;
+  const REFUND_AFTER_DAYS = 10;
   const refundOverdue =
     lead.id >= REFUND_WATCH_FROM_ID &&
     stageLower.includes("not answering") &&

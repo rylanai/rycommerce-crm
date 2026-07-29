@@ -106,7 +106,7 @@ input[type="number"]:focus::-webkit-outer-spin-button {
 }
 .number-bump { animation: number-bump 250ms ease-out; display: inline-block; }
 
-/* Refund-overdue lead — still sitting in "Not Answering" 7+ days after it was
+/* Refund-overdue lead — still sitting in "Not Answering" 10+ days after it was
    added. Slow red breathing glow so it reads as "submit a refund request"
    without being mistaken for the drag/select rings. */
 @keyframes refund-glow {
