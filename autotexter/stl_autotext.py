@@ -36,7 +36,10 @@ POLL_SECONDS = 10
 MAX_LEAD_AGE = 180         # a lead may only ENTER the sequence if its CRM row is <3 min old
 REPLY_TIMEOUT_H = 48       # stop watching a lead for a reply after this long
 MOVE_TO      = "Gathering Info ✍️"
-MOVE_FROM    = {"Asking Price", "Not Answering 😑"}
+# Stages an affirmative reply is allowed to advance OUT of. "Intake" is the PPL V2
+# tab's first column (where new Speed-to-Lead leads land), so it must be listed or
+# the card never leaves it. Anything further along is left alone on purpose.
+MOVE_FROM    = {"Intake", "Asking Price", "Not Answering 😑"}
 WINDOW_START = 9           # only send the reach-out double text between these hours...
 WINDOW_END   = 17          # ...in the LEAD's local time (9am–5pm)
 DEFAULT_TZ   = "America/New_York"   # fallback when state/area code is unknown
