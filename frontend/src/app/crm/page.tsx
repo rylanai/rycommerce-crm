@@ -62,6 +62,7 @@ interface Lead {
   sub_id_5: string;
   created_at: string;
   last_followed_up: string | null;
+  not_answering_since: string | null;
   notes: string | null;
   dispo_price: string | number | null;
   offer_price: string | number | null;
@@ -364,6 +365,21 @@ function LeadCard({
     new Date().getTime() - new Date(lead.created_at).getTime() >
       REFUND_AFTER_DAYS * 24 * 60 * 60 * 1000;
 
+  // Not Answering follow-up text rotates every 10 hours in the column: with the address,
+  // then without it, then with it again, and so on. not_answering_since is stamped by the
+  // backend when the lead enters the column and cleared when it leaves, so a lead that
+  // bounces out and comes back starts over on the with-address version.
+  const NOT_ANSWERING_ROTATE_HOURS = 10;
+  const isNotAnswering = stageLower.includes("not answering");
+  const notAnsweringHours = lead.not_answering_since
+    ? Math.max(0, (new Date().getTime() - new Date(lead.not_answering_since).getTime()) / 3600000)
+    : 0;
+  const notAnsweringWithAddress =
+    Math.floor(notAnsweringHours / NOT_ANSWERING_ROTATE_HOURS) % 2 === 0;
+  const notAnsweringMessage = notAnsweringWithAddress
+    ? `Hi are you still looking to sell your property? ${lead.property_address}`
+    : "Hi are you still looking to sell your property?";
+
   const needsFollowUp = !lead.last_followed_up ||
     (new Date().getTime() - new Date(lead.last_followed_up).getTime()) > 15 * 60 * 60 * 1000;
 
@@ -490,6 +506,8 @@ function LeadCard({
             <a
               href={lead.stage === firstColumnName
                 ? `sms:${lead.phone}&body=${encodeURIComponent(`Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${lead.property_address}. 🙂\n\n-Rylan Patterson`)}`
+                : isNotAnswering
+                ? `sms:${lead.phone}&body=${encodeURIComponent(notAnsweringMessage)}`
                 : `sms:${lead.phone}`}
               onClick={(e) => e.stopPropagation()}
               className="text-blue-400 hover:text-blue-300 underline"

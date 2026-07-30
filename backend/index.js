@@ -80,6 +80,14 @@ const initDB = async () => {
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS value NUMERIC;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_type VARCHAR(1);
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS extra_data JSONB;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS not_answering_since TIMESTAMP;
+    `);
+    // Leads already parked in "Not Answering" when this column shipped have no entry
+    // stamp — start their follow-up rotation now so they all begin on the with-address
+    // message instead of landing at a random point in the cycle.
+    await client.query(`
+      UPDATE leads SET not_answering_since = NOW()
+       WHERE stage ILIKE '%not answering%' AND not_answering_since IS NULL;
     `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS templates (
@@ -456,13 +464,26 @@ app.get('/api/leads', async (req, res) => {
   }
 });
 
+// Stamps when a lead ENTERS "Not Answering" and clears it on the way out. The CRM card
+// uses that stamp to alternate the prefilled follow-up text every 10 hours (with the
+// address, then without, then with...), so clearing it means a lead that leaves and
+// later comes back restarts the rotation. Re-setting the same Not Answering stage
+// (a drag within the column) keeps the original stamp. `stageParam` is the placeholder
+// holding the new stage, e.g. '$1'.
+const notAnsweringSinceCase = (stageParam) => `
+  CASE WHEN ${stageParam}::text ILIKE '%not answering%'
+         THEN CASE WHEN stage ILIKE '%not answering%' THEN not_answering_since ELSE NOW() END
+       ELSE NULL
+  END`;
+
 // PATCH /api/leads/:id/stage — update pipeline stage
 app.patch('/api/leads/:id/stage', async (req, res) => {
   try {
     const { id } = req.params;
     const { stage } = req.body;
     const result = await pool.query(
-      'UPDATE leads SET stage = $1 WHERE id = $2 RETURNING *',
+      `UPDATE leads SET stage = $1, not_answering_since = ${notAnsweringSinceCase('$1')}
+        WHERE id = $2 RETURNING *`,
       [stage, id]
     );
     if (result.rows.length === 0) {
@@ -492,12 +513,17 @@ app.patch('/api/leads/:id', async (req, res) => {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    const setClauses = keys.map((key, i) => `"${key}" = $${i + 1}`).join(', ');
+    const setClauses = keys.map((key, i) => `"${key}" = $${i + 1}`);
+    // Keep the Not Answering entry stamp in sync when this route is the one moving the stage.
+    const stageIdx = keys.indexOf('stage');
+    if (stageIdx !== -1) {
+      setClauses.push(`not_answering_since = ${notAnsweringSinceCase(`$${stageIdx + 1}`)}`);
+    }
     const values = keys.map(k => fields[k]);
     values.push(id);
 
     const result = await pool.query(
-      `UPDATE leads SET ${setClauses} WHERE id = $${values.length} RETURNING *`,
+      `UPDATE leads SET ${setClauses.join(', ')} WHERE id = $${values.length} RETURNING *`,
       values
     );
     if (result.rows.length === 0) {
