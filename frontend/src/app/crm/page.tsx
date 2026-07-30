@@ -412,15 +412,15 @@ function LeadCard({
             ? `In Not Answering for ${REFUND_AFTER_DAYS}+ days — submit a refund request`
             : undefined}
         >
-          {(lead.source === "propertyleads" || lead.source === "motivatedsellers" || lead.source === "speedtolead" || lead.source === "pplv2") && (
+          {(lead.source === "propertyleads" || lead.source === "propertyleads_v2" || lead.source === "motivatedsellers" || lead.source === "speedtolead" || lead.source === "pplv2") && (
             <div
               className="absolute -top-1 left-3 w-2.5 h-4 shadow-md pointer-events-none"
               style={{
-                backgroundColor: lead.source === "propertyleads" ? "#a855f7"
+                backgroundColor: (lead.source === "propertyleads" || lead.source === "propertyleads_v2") ? "#a855f7"
                   : (lead.source === "speedtolead" || lead.source === "pplv2") ? "#ef4444" : "#f97316",
                 clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 70%, 0 100%)",
               }}
-              title={lead.source === "propertyleads" ? "PropertyLeads"
+              title={(lead.source === "propertyleads" || lead.source === "propertyleads_v2") ? "PropertyLeads"
                 : (lead.source === "speedtolead" || lead.source === "pplv2") ? "Speed to Lead" : "MotivatedSellers"}
             />
           )}
@@ -1380,7 +1380,7 @@ export default function CRMPage() {
     SMS: ["sms"],
     PPC: ["ppc"],
     PPL: ["propertyleads", "motivatedsellers"],
-    "PPL V2": ["pplv2", "speedtolead"],
+    "PPL V2": ["pplv2", "speedtolead", "propertyleads_v2"],
     LUXURY: ["luxury"],
     CONNECTIONS: ["connections", "connection"],
   };
