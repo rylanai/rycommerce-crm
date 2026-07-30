@@ -475,31 +475,34 @@ app.get('/api/leads', async (req, res) => {
   }
 });
 
-// Stamps when a lead ENTERS "Not Answering" and clears it on the way out. The CRM card
-// uses that stamp to alternate the prefilled follow-up text every 10 hours (with the
-// address, then without, then with...), so clearing it means a lead that leaves and
-// later comes back restarts the rotation. Re-setting the same Not Answering stage
-// (a drag within the column) keeps the original stamp. `stageParam` is the placeholder
-// holding the new stage, e.g. '$1'.
-const notAnsweringSinceCase = (stageParam) => `
-  CASE WHEN ${stageParam}::text ILIKE '%not answering%'
-         THEN CASE WHEN stage ILIKE '%not answering%' THEN not_answering_since ELSE NOW() END
-       ELSE NULL
-  END`;
+const isNotAnsweringStage = (s) => (s || '').toLowerCase().includes('not answering');
+
+// What not_answering_since should become when a lead moves to `newStage`. The CRM card
+// uses this stamp to alternate the prefilled follow-up text every 10 hours (with the
+// address, then without, then with...). Stamped on entry, kept while the lead stays put
+// (a drag within the column shouldn't restart it), and cleared on the way out so a lead
+// that leaves and later comes back starts the rotation over.
+const nextNotAnsweringSince = (prevStage, newStage, current) => {
+  if (!isNotAnsweringStage(newStage)) return null;
+  if (isNotAnsweringStage(prevStage) && current) return current;
+  return new Date();
+};
 
 // PATCH /api/leads/:id/stage — update pipeline stage
 app.patch('/api/leads/:id/stage', async (req, res) => {
   try {
     const { id } = req.params;
     const { stage } = req.body;
-    const result = await pool.query(
-      `UPDATE leads SET stage = $1, not_answering_since = ${notAnsweringSinceCase('$1')}
-        WHERE id = $2 RETURNING *`,
-      [stage, id]
+    const prev = await pool.query(
+      'SELECT stage, not_answering_since FROM leads WHERE id = $1', [id]
     );
-    if (result.rows.length === 0) {
+    if (prev.rows.length === 0) {
       return res.status(404).json({ error: 'Lead not found' });
     }
+    const result = await pool.query(
+      'UPDATE leads SET stage = $1, not_answering_since = $2 WHERE id = $3 RETURNING *',
+      [stage, nextNotAnsweringSince(prev.rows[0].stage, stage, prev.rows[0].not_answering_since), id]
+    );
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating stage:', err);
@@ -524,13 +527,21 @@ app.patch('/api/leads/:id', async (req, res) => {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    const setClauses = keys.map((key, i) => `"${key}" = $${i + 1}`);
+    const updates = keys.map(k => [k, fields[k]]);
     // Keep the Not Answering entry stamp in sync when this route is the one moving the stage.
-    const stageIdx = keys.indexOf('stage');
-    if (stageIdx !== -1) {
-      setClauses.push(`not_answering_since = ${notAnsweringSinceCase(`$${stageIdx + 1}`)}`);
+    if (keys.includes('stage')) {
+      const prev = await pool.query(
+        'SELECT stage, not_answering_since FROM leads WHERE id = $1', [id]
+      );
+      if (prev.rows.length === 0) {
+        return res.status(404).json({ error: 'Lead not found' });
+      }
+      updates.push(['not_answering_since',
+        nextNotAnsweringSince(prev.rows[0].stage, fields.stage, prev.rows[0].not_answering_since)]);
     }
-    const values = keys.map(k => fields[k]);
+
+    const setClauses = updates.map(([key], i) => `"${key}" = $${i + 1}`);
+    const values = updates.map(([, value]) => value);
     values.push(id);
 
     const result = await pool.query(
