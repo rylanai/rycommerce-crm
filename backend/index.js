@@ -101,6 +101,17 @@ const initDB = async () => {
     await client.query(`
       ALTER TABLE templates ADD COLUMN IF NOT EXISTS category VARCHAR(64);
     `);
+    // eNovate run board. One row holds the whole board as JSON — single operator, so
+    // per-deal rows would buy nothing. rev increments on every write so a device can
+    // tell whether the server has moved past what it last saw.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS runboard (
+        id VARCHAR(32) PRIMARY KEY,
+        data JSONB NOT NULL,
+        rev INTEGER NOT NULL DEFAULT 1,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
     console.log('Database initialized');
   } finally {
     client.release();
@@ -754,6 +765,62 @@ app.put('/api/templates', async (req, res) => {
     res.status(500).json({ error: 'Failed to save templates' });
   } finally {
     client.release();
+  }
+});
+
+/* ---------------- eNovate run board ----------------
+   Shared state for the eNovate deal board so it is identical on every device.
+   Guarded by a shared key: unlike /api/leads these rows are only ever reached by
+   eNovate's own server, never straight from a browser. */
+
+const RUNBOARD_KEY = process.env.RUNBOARD_KEY;
+const BOARD_ID = 'default';
+
+const boardGuard = (req, res) => {
+  if (!RUNBOARD_KEY) {
+    res.status(503).json({ error: 'RUNBOARD_KEY is not configured on the API.' });
+    return false;
+  }
+  if (req.get('x-board-key') !== RUNBOARD_KEY) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return false;
+  }
+  return true;
+};
+
+// GET /api/runboard — current board plus its revision
+app.get('/api/runboard', async (req, res) => {
+  if (!boardGuard(req, res)) return;
+  try {
+    const r = await pool.query('SELECT data, rev FROM runboard WHERE id = $1', [BOARD_ID]);
+    if (!r.rows.length) return res.json({ data: null, rev: 0 });
+    res.json({ data: r.rows[0].data, rev: r.rows[0].rev });
+  } catch (err) {
+    console.error('Error fetching runboard:', err);
+    res.status(500).json({ error: 'Failed to fetch run board' });
+  }
+});
+
+// PUT /api/runboard — replace the board, bump the revision
+app.put('/api/runboard', async (req, res) => {
+  if (!boardGuard(req, res)) return;
+  const { data } = req.body || {};
+  if (!data || typeof data !== 'object') {
+    return res.status(400).json({ error: 'Body must be { data: {...} }' });
+  }
+  try {
+    const r = await pool.query(
+      `INSERT INTO runboard (id, data, rev, updated_at)
+       VALUES ($1, $2, 1, NOW())
+       ON CONFLICT (id) DO UPDATE
+         SET data = EXCLUDED.data, rev = runboard.rev + 1, updated_at = NOW()
+       RETURNING rev`,
+      [BOARD_ID, JSON.stringify(data)]
+    );
+    res.json({ rev: r.rows[0].rev });
+  } catch (err) {
+    console.error('Error saving runboard:', err);
+    res.status(500).json({ error: 'Failed to save run board' });
   }
 });
 
