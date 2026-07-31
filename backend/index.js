@@ -478,7 +478,7 @@ app.get('/api/leads', async (req, res) => {
 const isNotAnsweringStage = (s) => (s || '').toLowerCase().includes('not answering');
 
 // What not_answering_since should become when a lead moves to `newStage`. The CRM card
-// uses this stamp to alternate the prefilled follow-up text every 10 hours (with the
+// uses this stamp to alternate the prefilled follow-up text every 9 hours (with the
 // address, then without, then with...). Stamped on entry, kept while the lead stays put
 // (a drag within the column shouldn't restart it), and cleared on the way out so a lead
 // that leaves and later comes back starts the rotation over.

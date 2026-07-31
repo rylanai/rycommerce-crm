@@ -365,11 +365,11 @@ function LeadCard({
     new Date().getTime() - new Date(lead.created_at).getTime() >
       REFUND_AFTER_DAYS * 24 * 60 * 60 * 1000;
 
-  // Not Answering follow-up text rotates every 10 hours in the column: with the address,
+  // Not Answering follow-up text rotates every 9 hours in the column: with the address,
   // then without it, then with it again, and so on. not_answering_since is stamped by the
   // backend when the lead enters the column and cleared when it leaves, so a lead that
   // bounces out and comes back starts over on the with-address version.
-  const NOT_ANSWERING_ROTATE_HOURS = 10;
+  const NOT_ANSWERING_ROTATE_HOURS = 9;
   const isNotAnswering = stageLower.includes("not answering");
   const notAnsweringHours = lead.not_answering_since
     ? Math.max(0, (new Date().getTime() - new Date(lead.not_answering_since).getTime()) / 3600000)
