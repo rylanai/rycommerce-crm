@@ -365,17 +365,22 @@ function LeadCard({
     new Date().getTime() - new Date(lead.created_at).getTime() >
       REFUND_AFTER_DAYS * 24 * 60 * 60 * 1000;
 
-  // Not Answering follow-up text rotates every 9 hours in the column: with the address,
-  // then without it, then with it again, and so on. not_answering_since is stamped by the
+  // Not Answering follow-up text. The FIRST follow-up should always carry the address —
+  // a lead usually lands here the day it comes in and doesn't get worked until the next
+  // day, so the address version has to still be up when that first text finally goes out.
+  // Hence a 30-hour opening window; only after that does it alternate every 9 hours
+  // (without the address, with it, without it...). not_answering_since is stamped by the
   // backend when the lead enters the column and cleared when it leaves, so a lead that
-  // bounces out and comes back starts over on the with-address version.
+  // bounces out and comes back gets a fresh 30-hour window.
+  const NOT_ANSWERING_FIRST_HOURS = 30;
   const NOT_ANSWERING_ROTATE_HOURS = 9;
   const isNotAnswering = stageLower.includes("not answering");
   const notAnsweringHours = lead.not_answering_since
     ? Math.max(0, (new Date().getTime() - new Date(lead.not_answering_since).getTime()) / 3600000)
     : 0;
   const notAnsweringWithAddress =
-    Math.floor(notAnsweringHours / NOT_ANSWERING_ROTATE_HOURS) % 2 === 0;
+    notAnsweringHours < NOT_ANSWERING_FIRST_HOURS ||
+    Math.floor((notAnsweringHours - NOT_ANSWERING_FIRST_HOURS) / NOT_ANSWERING_ROTATE_HOURS) % 2 === 1;
   const notAnsweringMessage = notAnsweringWithAddress
     ? `Hi are you still looking to sell your property? ${lead.property_address}`
     : "Hi are you still looking to sell your property?";
