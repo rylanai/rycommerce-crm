@@ -81,6 +81,16 @@ function prettyLabel(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+// Vendor feeds hand us addresses with a country tail ("..., Mansfield, OH 44903, USA").
+// Fine on the card, but it reads wrong in a text to a seller — so strip it from any
+// address that goes INTO a message. The card's own display/copy keeps the raw value.
+function addressForMessage(address: string | null | undefined): string {
+  return (address || "")
+    .replace(/[,\s]+(?:USA|U\.?S\.?A\.?|U\.?S\.?|United States(?: of America)?)\s*\.?\s*$/i, "")
+    .replace(/[,\s]+$/, "")
+    .trim();
+}
+
 function parseMoney(v: string | number | null | undefined): number {
   if (v === null || v === undefined || v === "") return 0;
   const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.\-]/g, ""));
@@ -382,7 +392,7 @@ function LeadCard({
     notAnsweringHours < NOT_ANSWERING_FIRST_HOURS ||
     Math.floor((notAnsweringHours - NOT_ANSWERING_FIRST_HOURS) / NOT_ANSWERING_ROTATE_HOURS) % 2 === 1;
   const notAnsweringMessage = notAnsweringWithAddress
-    ? `Hi are you still looking to sell your property? ${lead.property_address}`
+    ? `Hi are you still looking to sell your property? ${addressForMessage(lead.property_address)}`
     : "Hi are you still looking to sell your property?";
 
   const needsFollowUp = !lead.last_followed_up ||
@@ -390,7 +400,7 @@ function LeadCard({
 
   const copyMessage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const msg = `Is ${lead.property_address} the correct address?`;
+    const msg = `Is ${addressForMessage(lead.property_address)} the correct address?`;
     navigator.clipboard.writeText(msg);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -510,7 +520,7 @@ function LeadCard({
           <p className="text-xs mb-1 flex items-center gap-1.5">
             <a
               href={lead.stage === firstColumnName
-                ? `sms:${lead.phone}&body=${encodeURIComponent(`Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${lead.property_address}. 🙂\n\n-Rylan Patterson`)}`
+                ? `sms:${lead.phone}&body=${encodeURIComponent(`Hello ${lead.first_name}, your information just came through our system saying you are looking to sell your property, ${addressForMessage(lead.property_address)}. 🙂\n\n-Rylan Patterson`)}`
                 : isNotAnswering
                 ? `sms:${lead.phone}&body=${encodeURIComponent(notAnsweringMessage)}`
                 : `sms:${lead.phone}`}
