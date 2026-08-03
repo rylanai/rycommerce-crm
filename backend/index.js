@@ -112,6 +112,19 @@ const initDB = async () => {
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
+    // Contracts uploaded against a run. Kept out of the runboard JSON on purpose —
+    // that document is written in full on every board change and a few PDFs would
+    // turn every keystroke into a multi-megabyte write.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS rundocs (
+        id VARCHAR(40) PRIMARY KEY,
+        deal_id VARCHAR(40),
+        name TEXT NOT NULL,
+        mime VARCHAR(120) NOT NULL,
+        bytes BYTEA NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
     console.log('Database initialized');
   } finally {
     client.release();
@@ -838,6 +851,42 @@ app.put('/api/runboard', async (req, res) => {
   } catch (err) {
     console.error('Error saving runboard:', err);
     res.status(500).json({ error: 'Failed to save run board' });
+  }
+});
+
+// POST /api/rundocs — store a contract against a run
+app.post('/api/rundocs', async (req, res) => {
+  if (!boardGuard(req, res)) return;
+  const { id, dealId, name, mime, data } = req.body || {};
+  if (!id || !name || !mime || !data) {
+    return res.status(400).json({ error: 'id, name, mime and data are required' });
+  }
+  try {
+    const bytes = Buffer.from(String(data), 'base64');
+    await pool.query(
+      `INSERT INTO rundocs (id, deal_id, name, mime, bytes) VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (id) DO NOTHING`,
+      [String(id).slice(0, 40), dealId ? String(dealId).slice(0, 40) : null,
+       String(name).slice(0, 300), String(mime).slice(0, 120), bytes]
+    );
+    res.json({ id, size: bytes.length });
+  } catch (err) {
+    console.error('Error storing rundoc:', err);
+    res.status(500).json({ error: 'Failed to store document' });
+  }
+});
+
+// GET /api/rundocs/:id — hand the file back for viewing
+app.get('/api/rundocs/:id', async (req, res) => {
+  if (!boardGuard(req, res)) return;
+  try {
+    const r = await pool.query('SELECT name, mime, bytes FROM rundocs WHERE id = $1', [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Not found' });
+    const row = r.rows[0];
+    res.json({ name: row.name, mime: row.mime, data: row.bytes.toString('base64') });
+  } catch (err) {
+    console.error('Error reading rundoc:', err);
+    res.status(500).json({ error: 'Failed to read document' });
   }
 });
 
