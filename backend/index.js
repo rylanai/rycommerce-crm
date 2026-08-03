@@ -23,6 +23,10 @@ async function notifySlack(lead) {
 
 const app = express();
 app.use(cors());
+// Contract uploads are base64 and run several hundred KB — the default 100kb JSON
+// limit rejected them with 413. Mounted before the global parser; body-parser skips
+// a second parse once req.body is set, so every other route keeps the 100kb default.
+app.use('/api/rundocs', express.json({ limit: '12mb' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
