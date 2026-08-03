@@ -519,10 +519,16 @@ app.patch('/api/leads/:id', async (req, res) => {
       'wants_to_sell', 'timeline', 'repairs', 'sell_reason', 'stage',
       'source', 'utm_campaign', 'utm_source',
       'sub_id_1', 'sub_id_2', 'sub_id_3', 'sub_id_4', 'sub_id_5',
-      'last_followed_up', 'notes', 'dispo_price', 'offer_price', 'value', 'deal_type'
+      'last_followed_up', 'notes', 'dispo_price', 'offer_price', 'value', 'deal_type',
+      // Writable so the follow-up rotation can be re-phased by hand (flip a lead to the
+      // other message and restart its countdown) without dragging it out of the column.
+      'not_answering_since'
     ];
     const fields = req.body;
-    const keys = Object.keys(fields).filter(k => allowedFields.includes(k));
+    let keys = Object.keys(fields).filter(k => allowedFields.includes(k));
+    // A stage move derives the stamp itself further down; a client value would collide
+    // into two assignments of the same column, so the server's wins.
+    if (keys.includes('stage')) keys = keys.filter(k => k !== 'not_answering_since');
     if (keys.length === 0) {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
