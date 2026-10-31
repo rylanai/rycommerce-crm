@@ -178,7 +178,8 @@ app.post('/api/leads', async (req, res) => {
 
     const newLead = result.rows[0];
     res.status(201).json(newLead);
-    notifySlack(newLead);
+    // a lead saved straight into Dead (the Meta form's "listed with an agent" DQ) is not a new lead
+    if (!/^dead/i.test(finalStage)) notifySlack(newLead);
   } catch (err) {
     console.error('Error creating lead:', err);
     res.status(500).json({ error: 'Failed to create lead' });

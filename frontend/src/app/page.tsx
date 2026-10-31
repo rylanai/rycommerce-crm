@@ -13,6 +13,7 @@ const GOOGLE_PLACES_KEY = process.env.NEXT_PUBLIC_GOOGLE_PLACES_KEY || "";
 
 interface FormData {
   wants_to_sell: string;
+  listed_with_agent: string;
   timeline: string;
   repairs: string;
   sell_reason: string;
@@ -91,6 +92,7 @@ export default function Home() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
     wants_to_sell: "",
+    listed_with_agent: "",
     timeline: "",
     repairs: "",
     sell_reason: "",
@@ -101,6 +103,8 @@ export default function Home() {
     phone: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  // "Listed with an agent? Yes" ends the form here — saved as a DQ, no Lead event to Meta
+  const [disqualified, setDisqualified] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const addressInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -163,16 +167,35 @@ export default function Home() {
     setTimeout(() => setStep((s) => s + 1), 200);
   };
 
+  // One submit -> /api/lead, which saves it to the CRM and forwards it to JV Tek's Meta
+  // board. If that route is down, straight to the CRM like before so no lead is lost.
+  const saveLead = async (data: FormData) => {
+    const body = { ...data, ...getUtmParams() };
+    try {
+      const r = await fetch("/api/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) return;
+    } catch (err) {
+      console.error("Lead route error:", err);
+    }
+    const dq = data.listed_with_agent === "Yes";
+    await fetch(`${API_URL}/api/leads`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dq
+        ? { ...body, stage: "Dead 🗑️", notes: "Asking: \nOffered: \nDispo: \nNotes: DQ — listed with an agent (Meta form)" }
+        : body),
+    });
+  };
+
   const handleSubmit = async () => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const utmParams = getUtmParams();
-      await fetch(`${API_URL}/api/leads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, ...utmParams }),
-      });
+      await saveLead(formData);
       setSubmitted(true);
       if (typeof window !== "undefined" && window.fbq) {
         window.fbq("track", "Lead");
@@ -184,6 +207,36 @@ export default function Home() {
       setSubmitting(false);
     }
   };
+
+  // Listed with an agent: thank them and stop. Saved as a DQ (the CRM's Dead column, JV
+  // Tek's Disqualified) so the ads can be judged on it — but no "Lead" event, so Meta
+  // only learns from sellers we can buy from.
+  const disqualify = () => {
+    const data = { ...formData, listed_with_agent: "Yes" };
+    setFormData(data);
+    setDisqualified(true);
+    saveLead(data).catch((err) => console.error("DQ save error:", err));
+  };
+
+  if (disqualified) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "#eaf4fb" }}
+      >
+        <div className="bg-white rounded-2xl shadow-lg p-10 max-w-lg w-full mx-4 text-center">
+          <h1 className="text-3xl font-bold mb-4" style={{ color: "#021e80" }}>
+            Thanks for letting us know!
+          </h1>
+          <p className="text-lg text-gray-700">
+            We only make cash offers on homes that aren&apos;t listed with an
+            agent. If your listing ends and you still want to sell, come back
+            and we&apos;ll get you an offer.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
@@ -322,6 +375,28 @@ export default function Home() {
         return (
           <>
             <h2 className="text-xl font-bold mb-6 text-center text-gray-800">
+              Is your home currently listed with a real estate agent?
+            </h2>
+            {["Yes", "No"].map((opt) => (
+              <OptionButton
+                key={opt}
+                label={opt}
+                selected={formData.listed_with_agent === opt}
+                onClick={() => {
+                  if (opt === "Yes") {
+                    disqualify();
+                    return;
+                  }
+                  selectOption("listed_with_agent", opt);
+                }}
+              />
+            ))}
+          </>
+        );
+      case 7:
+        return (
+          <>
+            <h2 className="text-xl font-bold mb-6 text-center text-gray-800">
               What is your name?
             </h2>
             <input
@@ -346,12 +421,12 @@ export default function Home() {
             />
             <NextButton
               onClick={() => {
-                if (formData.first_name && formData.last_name) setStep(7);
+                if (formData.first_name && formData.last_name) setStep(8);
               }}
             />
           </>
         );
-      case 7:
+      case 8:
         return (
           <>
             <h2 className="text-xl font-bold mb-6 text-center text-gray-800">
@@ -369,12 +444,12 @@ export default function Home() {
             />
             <NextButton
               onClick={() => {
-                if (formData.email) setStep(8);
+                if (formData.email) setStep(9);
               }}
             />
           </>
         );
-      case 8:
+      case 9:
         return (
           <>
             <h2 className="text-xl font-bold mb-6 text-center text-gray-800">
