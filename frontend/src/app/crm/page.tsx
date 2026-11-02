@@ -91,6 +91,28 @@ function addressForMessage(address: string | null | undefined): string {
     .trim();
 }
 
+// Ad attribution carried in the landing-page URL (Meta "URL parameters" field):
+//   utm_source={{site_source_name}}&utm_campaign={{campaign.name}}
+//   &sub_id_1={{adset.name}}&sub_id_2={{ad.name}}&sub_id_3={{placement}}
+//   &sub_id_4={{adset.id}}&sub_id_5={{ad.id}}
+// Ad Set is listed first because it is the usual question. Raw IDs render dimmed
+// since they are only for pasting back into Ads Manager. Leads from before the
+// parameters were set have a bare numeric campaign id, so that gets its own label.
+// Returns [label, value, dimmed][].
+function attributionRows(lead: Lead): [string, string, boolean][] {
+  const isBareId = /^\d+$/.test((lead.utm_campaign || "").trim());
+  const rows: [string, string, boolean][] = [
+    ["Ad Set", lead.sub_id_1, false],
+    ["Ad", lead.sub_id_2, false],
+    [isBareId ? "Campaign ID" : "Campaign", lead.utm_campaign, isBareId],
+    ["Placement", lead.sub_id_3, false],
+    ["Platform", lead.utm_source, false],
+    ["Ad Set ID", lead.sub_id_4, true],
+    ["Ad ID", lead.sub_id_5, true],
+  ];
+  return rows.filter(([, value]) => value && String(value).trim());
+}
+
 function parseMoney(v: string | number | null | undefined): number {
   if (v === null || v === undefined || v === "") return 0;
   const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.\-]/g, ""));
@@ -761,47 +783,26 @@ function LeadCard({
                 <span className="text-gray-500">Source:</span>{" "}
                 {lead.source?.toUpperCase()}
               </p>
-              {lead.utm_campaign && (
-                <p>
-                  <span className="text-gray-500">UTM Campaign:</span>{" "}
-                  {lead.utm_campaign}
-                </p>
-              )}
-              {lead.utm_source && (
-                <p>
-                  <span className="text-gray-500">UTM Source:</span>{" "}
-                  {lead.utm_source}
-                </p>
-              )}
-              {lead.sub_id_1 && (
-                <p>
-                  <span className="text-gray-500">Sub ID 1:</span>{" "}
-                  {lead.sub_id_1}
-                </p>
-              )}
-              {lead.sub_id_2 && (
-                <p>
-                  <span className="text-gray-500">Sub ID 2:</span>{" "}
-                  {lead.sub_id_2}
-                </p>
-              )}
-              {lead.sub_id_3 && (
-                <p>
-                  <span className="text-gray-500">Sub ID 3:</span>{" "}
-                  {lead.sub_id_3}
-                </p>
-              )}
-              {lead.sub_id_4 && (
-                <p>
-                  <span className="text-gray-500">Sub ID 4:</span>{" "}
-                  {lead.sub_id_4}
-                </p>
-              )}
-              {lead.sub_id_5 && (
-                <p>
-                  <span className="text-gray-500">Sub ID 5:</span>{" "}
-                  {lead.sub_id_5}
-                </p>
+              {attributionRows(lead).length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-700/60">
+                  <p className="text-gray-500 mb-1 font-semibold">
+                    Where It Came From
+                  </p>
+                  <div className="space-y-0.5">
+                    {attributionRows(lead).map(([label, value, dim]) => (
+                      <p key={label} className="flex gap-2">
+                        <span className="text-gray-500 shrink-0">{label}:</span>
+                        <span
+                          className={`break-words ${
+                            dim ? "text-gray-500 text-[11px]" : "text-gray-200"
+                          }`}
+                        >
+                          {value}
+                        </span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
               )}
               <p>
                 <span className="text-gray-500">Created:</span>{" "}
@@ -1099,10 +1100,17 @@ export default function CRMPage() {
   // polls so the 10s refresh doesn't wipe in-progress typing.
   const pendingEditsRef = useRef<Record<number, Partial<Lead>>>({});
 
-  const fetchLeads = useCallback(async () => {
+  // The 15s poll used to re-render every card on the board (2,400+) even when nothing
+  // had changed, which froze the page. A poll whose list is byte-for-byte what we
+  // already have is now skipped. Any other caller (a failed save resyncing) always applies.
+  const lastLeadsTextRef = useRef("");
+  const fetchLeads = useCallback(async (fromPoll?: unknown) => {
     try {
       const res = await fetch(`${API_URL}/api/leads`);
-      const data: Lead[] = await res.json();
+      const text = await res.text();
+      if (fromPoll === true && text === lastLeadsTextRef.current) return;
+      lastLeadsTextRef.current = text;
+      const data: Lead[] = JSON.parse(text);
       const pending = pendingEditsRef.current;
       const merged = data.map((l) =>
         pending[l.id] ? { ...l, ...pending[l.id] } : l
@@ -1264,7 +1272,7 @@ export default function CRMPage() {
       const interval = setInterval(() => {
         if (draggingRef.current) return;
         if (Date.now() - lastDragEndRef.current < 2000) return;
-        fetchLeads();
+        fetchLeads(true);
       }, 15000);
       return () => clearInterval(interval);
     }
@@ -1410,6 +1418,12 @@ export default function CRMPage() {
 
   const getLeadsByStage = (stage: string) =>
     filteredLeads.filter((l) => l.stage === stage);
+
+  // A column draws its newest COLUMN_CARD_LIMIT cards; "Show more" adds the next batch.
+  // Sent Photos alone holds 1,800+ Spencer's List leads, and drawing every card at once
+  // is what made the board unresponsive. Counts and $ totals still use the whole column.
+  const COLUMN_CARD_LIMIT = 50;
+  const [shownPerStage, setShownPerStage] = useState<Record<string, number>>({});
 
   const handleDelete = async (id: number) => {
     setLeads((prev) => prev.filter((l) => l.id !== id));
@@ -2032,6 +2046,9 @@ export default function CRMPage() {
                 {allStages.map((stage, colIndex) => {
                   const stageLeads = getLeadsByStage(stage);
                   const colValue = stageLeads.reduce((sum, l) => sum + leadValue(l), 0);
+                  const shownLimit = shownPerStage[stage] || COLUMN_CARD_LIMIT;
+                  const shownLeads = stageLeads.length > shownLimit ? stageLeads.slice(0, shownLimit) : stageLeads;
+                  const hiddenCount = stageLeads.length - shownLeads.length;
                   const accent = stageAccent(stage);
                   const accentStyle = accent ? STAGE_ACCENT_STYLES[accent] : null;
                   return (
@@ -2120,7 +2137,7 @@ export default function CRMPage() {
                                   snapshot.isDraggingOver ? "bg-indigo-500/5" : ""
                                 }`}
                               >
-                                {stageLeads.map((lead, index) => (
+                                {shownLeads.map((lead, index) => (
                                   <LeadCard
                                     key={lead.id}
                                     lead={lead}
@@ -2139,6 +2156,20 @@ export default function CRMPage() {
                                   />
                                 ))}
                                 {provided.placeholder}
+                                {hiddenCount > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShownPerStage((prev) => ({
+                                        ...prev,
+                                        [stage]: shownLimit + COLUMN_CARD_LIMIT * 4,
+                                      }))
+                                    }
+                                    className="w-full mt-1 py-2 rounded-lg border border-white/10 text-xs text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer"
+                                  >
+                                    Show {Math.min(hiddenCount, COLUMN_CARD_LIMIT * 4)} more ({hiddenCount} not shown)
+                                  </button>
+                                )}
                               </div>
                             )}
                           </Droppable>
