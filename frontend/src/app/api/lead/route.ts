@@ -15,6 +15,9 @@ const FIELDS = [
   "utm_source", "utm_campaign", "sub_id_1", "sub_id_2", "sub_id_3", "sub_id_4", "sub_id_5",
 ] as const;
 
+// Facebook ids + the page: JV Tek only (the old CRM's table has no place for them)
+const FB_FIELDS = ["fbc", "fbp", "url"] as const;
+
 const DQ_NOTES = "Asking: \nOffered: \nDispo: \nNotes: DQ — listed with an agent (Meta form)";
 
 async function post(url: string, body: object, headers: Record<string, string> = {}) {
@@ -37,6 +40,15 @@ export async function POST(req: Request) {
     if (typeof v === "string" && v.trim()) lead[k] = v.trim().slice(0, 500);
   }
   if (!lead.phone && !lead.property_address) return Response.json({ error: "empty lead" }, { status: 400 });
+  const fb: Record<string, string> = {};
+  for (const k of FB_FIELDS) {
+    const v = (raw as Record<string, unknown>)[k];
+    if (typeof v === "string" && v.trim()) fb[k] = v.trim().slice(0, 500);
+  }
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+  const ua = req.headers.get("user-agent") || "";
+  if (ip) fb.ip = ip.slice(0, 100);
+  if (ua) fb.ua = ua.slice(0, 500);
   const dq = /^y/i.test(lead.listed_with_agent || "");
 
   let crmId: number | null = null;
@@ -55,7 +67,7 @@ export async function POST(req: Request) {
   let jvOk = false;
   if (JVTEK_URL && JVTEK_KEY) {
     try {
-      const jv = await post(JVTEK_URL, { ...lead, crm_id: crmId }, { "x-meta-key": JVTEK_KEY });
+      const jv = await post(JVTEK_URL, { ...lead, ...fb, crm_id: crmId }, { "x-meta-key": JVTEK_KEY });
       jvOk = jv.ok;
       if (!jv.ok) console.error("JV Tek refused the lead", jv.status, jv.text.slice(0, 200));
     } catch (e) {

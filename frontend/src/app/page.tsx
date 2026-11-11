@@ -35,7 +35,22 @@ function getUtmParams() {
     sub_id_3: params.get("sub_id_3") || "",
     sub_id_4: params.get("sub_id_4") || "",
     sub_id_5: params.get("sub_id_5") || "",
+    ...getFbIds(params),
   };
+}
+
+// Facebook's click id (fbclid in the ad link -> the _fbc cookie the pixel sets) and browser id (_fbp), plus the page, so
+// JV Tek can tell Facebook later which ad clicks became real sellers (Conversions API, Rylan 11/11)
+function getFbIds(params: URLSearchParams) {
+  const cookie = (n: string) => (document.cookie.match(new RegExp("(?:^|; )" + n + "=([^;]*)")) || [])[1] || "";
+  const fbclid = params.get("fbclid") || "";
+  let fbc = cookie("_fbc");
+  if (!fbc && fbclid) fbc = `fb.1.${Date.now()}.${fbclid}`;
+  try {
+    if (fbc) sessionStorage.setItem("fbc", fbc);
+    else fbc = sessionStorage.getItem("fbc") || "";
+  } catch {}
+  return { fbc: decodeURIComponent(fbc), fbp: decodeURIComponent(cookie("_fbp")), url: window.location.origin + window.location.pathname };
 }
 
 function OptionButton({
